@@ -1,0 +1,125 @@
+Input: ""
+Expected Output:
+    Not enough arguments entered
+
+Input: "652365345324565"
+Expected Output:
+    No words found
+
+Input: Hello World
+Expected Output:
+    Too many arguments entered. If you would like to enter multiple words, be sure to surround argument in quotes
+    Only using following argument:
+    Input: Hello
+    Hello
+
+Input: "Hello World"
+Expected Output:
+    Not enough arguments entered
+
+Input: "“thing stuff otherstuff blarp”
+Expected Output:
+    Input: thing stuff otherstuff blarp
+    thing
+    stuff
+    otherstuff
+    blarp
+
+Input: “thing1stuff3otherstuff,blarp”
+Expected Output:
+    Input: thing1stuff3otherstuff,blarp
+    thing
+    stuff
+    otherstuff
+    blarp
+
+Input: "Aand, aAnd, aand, Aand"
+Expected Output:
+    Input: Aand, aAnd, aand, Aand
+    Aand
+    Aand
+    aAnd
+    aand
+
+Input: "Aand,765 3 . ,,,\;  aAnd,562788'''?/ aand43235|\Aand"
+Expected Output:
+    Input: Aand,765 3 . ,,,\;  aAnd,562788'''?/ aand43235|\Aand
+    Aand
+    Aand
+    aAnd
+    aand
+
+Input: "345[}{}|`#@#$%^@!^|}|}|}"
+Expected Output:
+    Input: 345[}{}|#@#$%^@!^|}|}|}
+    No words found
+
+Input: "and and and and"
+Expected Output:
+    Input: and and and and
+    and
+    and
+    and
+    and
+
+Input: "And bnd Bnd cnd"
+Expected Output:
+    Input: And bnd Bnd cnd
+    Bnd
+    And
+    cnd
+    bnd
+
+Input: "APPLE, 634BANANA, ORANGE, GRAPE, PINEAPPLE23525"
+Expected Output:
+    Input: APPLE, 634BANANA, ORANGE, GRAPE, PINEAPPLE23525
+    PINEAPPLE
+    ORANGE
+    GRAPE
+    BANANA
+    APPLE
+
+Input: "abc, abe, abg, abb, aaa, bad, bag, ban, bab"
+Expected Output:
+    Input: abc, abe, abg, abb, aaa, bad, bag, ban, bab
+    ban
+    bag
+    bad
+    bab
+    abg
+    abe
+    abc
+    abb
+    aaa
+
+Input: "*(^*(W*&*@*&#(@((#*@&b"
+Expected Output:
+    Input: *(^*(W*&*@*&#(@((#*@&b
+    W
+    b
+
+Input: "*(^*(w*&*@*&#(@((#*@&B"
+Expected Output:
+    Input: *(^*(w*&*@*&#(@((#*@&B
+    B
+    w
+
+Input: ")))))))))))))))))))))))))))))))))))))))))"
+Expected Output:
+    Input: )))))))))))))))))))))))))))))))))))))))))
+    No words found
+
+Input: "C, python, pHp, jAVA, CpP, sql, SQL, Matlab, jAVAaScript, JQuery"
+Expected Output:
+    Input: C, python, pHp, jAVA, CpP, sql, SQL, Matlab, jAVAaScript, JQuery
+    SQL
+    Matlab
+    JQuery
+    CpP
+    C
+    sql
+    pHp
+    python
+    jAVAaScript
+    jAVA
+
