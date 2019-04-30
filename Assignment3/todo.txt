@@ -1,0 +1,23 @@
+Configure - done 
+checkout - get current working project from server (latest) - 
+update - 
+configure - done
+checkout - get latest version from server 
+update       
+       - compare hashCode in server/client manifest
+       - make .udpate file by comapring server .Manifst file 
+       - print .update to console
+upgrade - apply changes from .update file
+commit - sends server manifest to client; check if both manifests match - TBD 
+push - send file client sends .commit file to server 
+create - create new repo w/ Manifest - Salman
+destroy - rm all pending commits and repo (full folder) on server - Usama 
+add - Add to clients manifest with / vesion # and HashCode
+remove - rm file from clients manifest 
+currentVersion 
+               - request current state of a project form server 
+               - output files with current version 
+history - server sends back to the client a file containing the history of all operations on all successful pushed since beginning 
+rollback - revert back to requested version on the server 
+
+Parsing - Salman 
