@@ -39,7 +39,7 @@ void splitInput(char* input){
 	int colons = 0;
 	int i;
 	for (i = 0; i < strlen(input); i++){
-		if (input[i] == ':') colons++;
+clear		if (input[i] == ':') colons++;
 	}
 	char* split[colons + 1];
 	for (i = 0; i < colons + 1; i++) split[i] = (char*) malloc(sizeof(char*));
@@ -64,7 +64,7 @@ void splitInput(char* input){
 	else if (strcmp(split[0], "history") == 0) history(split);
 	else if (strcmp(split[0], "rollback") == 0) rollback(split);
 	else printf("Incorrect command\n");
-	free(word);
+clear	free(word);
 	word = NULL;
 	for (i = 0; i < colons + 1; i++) free(split[i]);
 }

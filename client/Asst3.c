@@ -1,4 +1,3 @@
-
 #include "../WTF.h"
 
 char* ip;
@@ -48,6 +47,64 @@ void configure(){
 	strcpy(s, "");
 }
 
+char* readFromFile(int fd){
+	int maxCapacity = 4096;
+	char* buff = (char*) malloc(1024);
+	strcpy(buff, "");
+	char* str = (char*) malloc(maxCapacity);
+	strcpy(str, "");
+	while (read(fd, buff, 25) != 0){
+		if (strlen(str) > .75 * maxCapacity){
+			maxCapacity *= 2;
+			str = realloc(str, maxCapacity);
+		}
+		str = strcat(str, strdup(buff));
+	}
+	printf("%s\n\n", str);
+	return str;
+}
+
+char** splitString(char* str, char delim){
+	int i;
+	int delimsFound = 0;
+	for (i = 0; i < strlen(str); i++){
+		if (str[i] == delim) delimsFound++;
+	}
+	// allocating 2 more than number of delims found to add additional NULL value at the end
+	// NULL value will allow for finding end of array
+	char** split = (char**) malloc((delimsFound + 2) * sizeof(char*));
+	char* word = (char*) malloc(20000);
+	char delimStr[2];
+	delimStr[0] = delim;
+	delimStr[1] = '\0';
+	word = strtok(str, delimStr);
+	i = 0;
+	while (word != NULL){ 
+		split[i] = (word);
+		word = strtok(NULL, delimStr);
+		i++;
+	}
+	split[i] = NULL;
+	return split;
+}
+
+// creates string to be sent to server
+char* createSendString(char* file){
+	int i;
+	int fd = open(file, O_RDONLY, 0);
+	char* str = readFromFile(fd);
+	char** split = strcmp(file, ".Manifest") == 0 ?  splitString(str, '\n'): NULL;
+	close(fd);
+	for (i = 0; split[i] != NULL; i++){
+		fd = open(split[i], O_RDONLY, 0);
+		str = readFromFile(fd);
+		printf("%s\n", split[i]);
+		//printf("%s\n\n\n\n", str);
+		close(fd);
+	}	
+	return str;
+}
+
 void checkout(char* project){}
 
 void update(char* project){}
@@ -81,7 +138,7 @@ void history(char* project){}
 void rollback(char* project, char* version){}
 
 int main(int argc, char* args[]){
-	int configured = 0;
+	int configured = 1;
 	int validOption = 1;
 	//  Terminates program if no additional arguments are entered
 	if (argc < 2){
@@ -126,8 +183,9 @@ int main(int argc, char* args[]){
 		else validOption = 0;
 	}
 	if (validOption == 0) printf("Invalid Option\n");
-	connectToServer();
-	create("Test");
+	// connectToServer();
+	// create("Test");
+	createSendString(".Manifest");
 }
 
 
