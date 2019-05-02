@@ -53,14 +53,13 @@ char* readFromFile(int fd){
 	strcpy(buff, "");
 	char* str = (char*) malloc(maxCapacity);
 	strcpy(str, "");
-	while (read(fd, buff, 25) != 0){
+	while(read(fd, buff, 1020) != 0){
 		if (strlen(str) > .75 * maxCapacity){
 			maxCapacity *= 2;
 			str = realloc(str, maxCapacity);
 		}
 		str = strcat(str, strdup(buff));
 	}
-	printf("%s\n\n", str);
 	return str;
 }
 
@@ -94,15 +93,42 @@ char* createSendString(char* file){
 	int fd = open(file, O_RDONLY, 0);
 	char* str = readFromFile(fd);
 	char** split = strcmp(file, ".Manifest") == 0 ?  splitString(str, '\n'): NULL;
+	char* sendString = (char*) malloc (2000000);
+	strcpy(sendString, "");
 	close(fd);
-	for (i = 0; split[i] != NULL; i++){
-		fd = open(split[i], O_RDONLY, 0);
-		str = readFromFile(fd);
-		printf("%s\n", split[i]);
-		//printf("%s\n\n\n\n", str);
-		close(fd);
-	}	
-	return str;
+	char numAsStr[10];
+	strcpy(numAsStr,"");
+	if (split != NULL){
+		for (i = 0; split[i] != NULL; i++){
+			strcat(sendString, ":");
+			sprintf(numAsStr,"%d",strlen(split[i]));
+			strcat(sendString, numAsStr);
+			strcat(sendString, ":");
+			strcat(sendString, split[i]);
+			fd = open(split[i], O_RDONLY, 0);
+			str = readFromFile(fd);
+			strcat(sendString, ":");
+			sprintf(numAsStr,"%d",strlen(str));
+			strcat(sendString, numAsStr);
+			strcat(sendString, ":");
+			strcat(sendString, str);
+			close(fd);
+		}
+	}
+	else{
+		strcat(sendString, ":1:");
+		sprintf(numAsStr, "%d", strlen(file));
+		strcat(sendString, numAsStr);
+		strcat(sendString, ":");
+		strcat(sendString, file);
+		strcat(sendString, ":");
+		sprintf(numAsStr, "%d", strlen(str));
+		strcat(sendString, numAsStr);
+		strcat(sendString, ":");
+		strcat(sendString, str);
+	} 
+	printf("%s\n", sendString);
+	return sendString;
 }
 
 void checkout(char* project){}
@@ -185,7 +211,7 @@ int main(int argc, char* args[]){
 	if (validOption == 0) printf("Invalid Option\n");
 	// connectToServer();
 	// create("Test");
-	createSendString(".Manifest");
+	createSendString("testFiles/test1.txt");
 }
 
 
