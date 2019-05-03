@@ -116,7 +116,9 @@ char* createSendString(char* file){
 		}
 	}
 	else{
-		strcat(sendString, ":1:");
+		// number of files seems unnecessary
+		// strcat(sendString, ":1:");
+		strcat(sendString, ":");
 		sprintf(numAsStr, "%d", strlen(file));
 		strcat(sendString, numAsStr);
 		strcat(sendString, ":");
@@ -126,9 +128,54 @@ char* createSendString(char* file){
 		strcat(sendString, numAsStr);
 		strcat(sendString, ":");
 		strcat(sendString, str);
-	} 
-	printf("%s\n", sendString);
+	}
+	
 	return sendString;
+}
+
+void parseInputString(char* str){
+	printf("%s\n", str);
+	char** split = splitString(str, ':');
+	int i = 0;
+	int fd;
+	int fileSize;
+	// every file has 4 index spots, 2 for strlen of filepath and content, and 2 for filepath and content
+	int fileDataCounter = 0;
+	// split[0] is most likely command (tbd for parsing)
+	// split [1] is number of files
+	while(split[i] != NULL){
+		if (fileDataCounter == 4) {
+			fileDataCounter = 0;
+			close(fd);
+		}
+		if (i == 0){
+			i++;
+			continue; // Temporary, need to figure out what to do with command
+		}
+		if (i == 1){
+			i++;
+			continue; // Temporary, need to figure out what to do with number of files
+		}
+		printf("%s\n", split[i]);
+		if (fileDataCounter == 0){
+			printf("%s\n\n", split[i]);
+			char** splitFilePath = splitString(split[i], '/');
+			int j = 0;
+			while (splitFilePath[j + 1] != NULL) j++;
+			char* fp = (char*) malloc(strlen("createdFiles/") + strlen(splitFilePath[j]));
+			strcpy(fp, "");
+			strcat(fp, "createdFiles/");
+			strcat(fp, splitFilePath[j]);
+			fd = open(fp, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IXUSR);
+			if (fd < 0) perror("Unable to open/create fd error: \n");
+		}
+		if (fileDataCounter == 1) fileSize = atoi(split[i]);
+		if (fileDataCounter == 2){
+			write(fd, split[i], fileSize);
+		}
+		fileDataCounter++;
+		i++;
+	}
 }
 
 void checkout(char* project){}
@@ -211,7 +258,13 @@ int main(int argc, char* args[]){
 	if (validOption == 0) printf("Invalid Option\n");
 	// connectToServer();
 	// create("Test");
-	createSendString("testFiles/test1.txt");
+	// char* s = createSendString("testFiles/test1.txt");
+	char* s = createSendString(".Manifest");
+	char* s2 = (char*) malloc(strlen("a") + strlen(s));
+	strcpy(s2, "a");
+	strcat(s2, s);
+	printf("%s\n", s2);
+	parseInputString(s2);
 }
 
 
