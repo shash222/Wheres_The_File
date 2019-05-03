@@ -15,10 +15,20 @@
  * adds sha256 hashsum of fl under client/.Manifest fl 
  * 
  * */
-void addFileHash(char * filename, char * file_loc)
+void addFileHash(char * filename, char * file_loc, int version, char* project)
 {
-  char cmd[50];
-  sprintf(cmd, "sha256sum %s >> %s", filename, file_loc);
+  char projectPath[50];
+  sprintf(projectPath,"projects/%s/.Manifest", project);
+
+  char filePath[50];
+  sprintf(filePath,"projects/%s/%s", project, filename);
+
+  
+  char cmd[100];
+//  sprintf(cmd, "sha256sum %s >> %s", filename, file_loc);
+  sprintf(cmd, "{ sha256sum %s; echo %s; echo %d; printf '\n'; } | tr '\n' ' '>> %s", filePath, file_loc, version, projectPath);
+  system(cmd);
+  sprintf(cmd, "printf '\n' >> %s",projectPath);
   system(cmd);
 }
 
@@ -28,10 +38,13 @@ void addFileHash(char * filename, char * file_loc)
  *
  * */
 
-void delFileHash(char * filename, char * file_loc)
+void delFileHash(char * filename, char * project)
 {
+  char projectPath[50];
+  sprintf(projectPath,"projects/%s/.Manifest", project);
+  
   char cmd[50];
-  sprintf(cmd, "sed -i '\\:%s:d' %s", filename, file_loc);
+  sprintf(cmd, "sed -i '\\:%s:d' %s", filename, projectPath);
   cmd[strlen(cmd)] = '\0';
   system(cmd);
 }
@@ -81,21 +94,6 @@ char** splitLine(char *fl, char  delim) {
 } 
 
 
-char* readFromFile(int fd){
-  int maxCapacity = 4096;
-  char* buff = (char*) malloc(1024);
-  strcpy(buff, "");
-  char* str = (char*) malloc(maxCapacity);
-  strcpy(str, "");
-  while(read(fd, buff, 1020) != 0){
-    if (strlen(str) > .75 * maxCapacity){
-      maxCapacity *= 2;
-      str = realloc(str, maxCapacity);
-    }
-    str = strcat(str, strdup(buff));
-  }
-  return str;
-}
 
 char ** getMatchingLine(char *c, char ** s)
 {
@@ -116,4 +114,44 @@ char ** getMatchingLine(char *c, char ** s)
   return NULL;
 
 
+}
+
+int projectExists(char * projectName)
+{
+
+  char path[50];
+  sprintf(path,"projects/%s", projectName);
+
+  if(access(path, F_OK) == 0) return 1;
+  else return 0;
+
+}
+
+int fileInProject(char * projectName, char * fileName)
+{
+
+  char path[50];
+  sprintf(path,"projects/%s/%s", projectName, fileName);
+
+  if(access(path, F_OK) == 0) return 1;
+  else return 0;
+
+
+}
+
+
+char* readFromFile(int fd){
+	int maxCapacity = 4096;
+	char* buff = (char*) malloc(1024);
+	strcpy(buff, "");
+	char* str = (char*) malloc(maxCapacity);
+	strcpy(str, "");
+	while(read(fd, buff, 1020) != 0){
+		if (strlen(str) > .75 * maxCapacity){
+			maxCapacity *= 2;
+			str = realloc(str, maxCapacity);
+		}
+		str = strcat(str, strdup(buff));
+	}
+	return str;
 }

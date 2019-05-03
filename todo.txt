@@ -8,7 +8,10 @@ update
        - make .udpate file by comapring server .Manifst file 
        - print .update to console
 upgrade - apply changes from .update file
-commit - sends server manifest to client; check if both manifests match - TBD 
+commit - sends server manifest to client; check if both manifests match - Mostly Done
+                                                      - Implement call to server 
+                                                      - check if on server but not on client (meant to be deleted)
+                                                       
 push - send file client sends .commit file to server 
 create - create new repo w/ Manifest - Done
 destroy - rm all pending commits and repo (full folder) on server - Usama 
