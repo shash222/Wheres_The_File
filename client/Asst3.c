@@ -253,7 +253,7 @@ void create(char* projectName){
   send(sock, sendText, strlen(sendText), 0);
   //create file locally 
   char cmd[50];
-  if(!projectFileExists) system("mkdir projects");
+  if(!projectFileExists()) system("mkdir projects");
   if(projectExists(projectName))
   {
     printf("Project Already Exists!\n");

@@ -226,7 +226,7 @@ void parseInputString(char* str){
   //free(word);
   //word = NULL;
   int i;
-  for (i = 0; split[i] != NULL; i++) free(split[i]);
+  for (i = 0; !split[i]; i++) free(split[i]);
 }
 
 
@@ -246,7 +246,7 @@ void create(char* split[]){
   strcpy(projectName, split[1]); 
   //create file locally 
   char cmd[50];
-  if(!projectFileExists) system("mkdir projects");
+  if(projectFileExists() == 0) system("mkdir projects");
   if(projectExists(projectName))
   {
     printf("Project Already Exists!\n");
