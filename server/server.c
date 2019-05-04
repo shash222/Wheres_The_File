@@ -1,6 +1,32 @@
 // Server side C/C++ program to demonstrate Socket programming 
 #include "../WTF.h"
 
+
+void rollback(char* split[]);
+
+void currentVersion(char* split[]);
+
+void history(char* split[]);
+
+
+void checkout(char* split[]);
+
+void update(char* split[]);
+
+void upgrade(char* split[]);
+
+void commit(char* split[]);
+
+void push(char* split[]);
+
+void create(char* split[]);
+
+void destroy(char* split[]);
+
+void add(char* split[]);
+
+void rem(char* split[]);
+
 unsigned short port;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 // pthread_mutex_lock(&mutex);
@@ -123,7 +149,7 @@ void sendManifest(char* projectName){
 	strcat(sendString, str);
 }
 
-void createFiles(char* split){
+void createFiles(char** split){
 	int i = 0;
 	int fd;
 	int fileSize;
@@ -183,7 +209,7 @@ void parseInputString(char* str){
 		i++;
 	}
 */
-	char** splitInputString = splitString(str, ':');
+	char** split = splitString(str, ':');
 	if (strcmp(split[0], "checkout") == 0) checkout(split);
 	else if (strcmp(split[0], "update") == 0) update(split);
 	else if (strcmp(split[0], "upgrade") == 0) upgrade(split);
@@ -197,9 +223,10 @@ void parseInputString(char* str){
 	else if (strcmp(split[0], "history") == 0) history(split);
 	else if (strcmp(split[0], "rollback") == 0) rollback(split);
 	else printf("Incorrect command\n");
-	free(word);
-	word = NULL;
-	for (i = 0; splitInputString[i] != NULL; i++) free(splitInputString[i]);
+	//free(word);
+	//word = NULL;
+  int i;
+	for (i = 0; split[i] != NULL; i++) free(split[i]);
 }
 
 
