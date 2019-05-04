@@ -65,7 +65,7 @@ void commit(char * project_Name)
       sprintf(commit_File,"%s/.Commit", path);
 
       sprint(sendString, "commit:%s", createSendString(commit_File));
-      //sendToServer(sendString);
+      sendToServer(sendString);
 
 
       printf("Commited successfully\n");
@@ -119,7 +119,7 @@ void commit(char * project_Name)
             char commit_File[50];
             sprintf(commit_File,"%s/.Commit", path);
             sprint(sendString, "commit:%s", createSendString(commit_File));
-            //sendToServer(sendString);
+            sendToServer(sendString);
             printf("Commited successfully\n");
             system(cmd);
           }
@@ -149,7 +149,7 @@ void commit(char * project_Name)
               sprintf(commit_File,"%s/.Commit", path);
 
               sprint(sendString, "commit:%s", createSendString(commit_File));
-              //sendToServer(sendString);
+              sendToServer(sendString);
 
               printf("Commited successfully\n");
               system(cmd);
@@ -227,7 +227,7 @@ void add(char * projectName, char * fileName)
 
 }
 
-void removeHash(char * projectname, char * filename)
+void rem(char * projectname, char * filename)
 {
 
   if(!projectExists(projectname))
