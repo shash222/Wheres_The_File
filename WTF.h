@@ -138,13 +138,11 @@ int projectExists(char * projectName)
 
 int projectFileExists()
 {
-  DIR* dir = opendir("projects");
-  if (dir)
-  {
-        closedir(dir);
-        return 1;
-  }
-  return 0;
+  char path[50];
+  sprintf(path,"projects/");
+
+  if(access(path, F_OK) == 0) return 1;
+  else return 0;
 }
 
 
