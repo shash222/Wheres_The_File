@@ -9,6 +9,164 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int new_socket;
 int highestClientSocket;
 
+char* readFromFile(int fd){
+	int maxCapacity = 4096;
+	char* buff = (char*) malloc(1024);
+	strcpy(buff, "");
+	char* str = (char*) malloc(maxCapacity);
+	strcpy(str, "");
+	while(read(fd, buff, 1020) != 0){
+		if (strlen(str) > .75 * maxCapacity){
+			maxCapacity *= 2;
+			str = realloc(str, maxCapacity);
+		}
+		str = strcat(str, strdup(buff));
+	}
+	return str;
+}
+
+char** splitString(char* str, char delim){
+	int i;
+	int delimsFound = 0;
+	for (i = 0; i < strlen(str); i++){
+		if (str[i] == delim) delimsFound++;
+	}
+	// allocating 2 more than number of delims found to add additional NULL value at the end
+	// NULL value will allow for finding end of array
+	char** split = (char**) malloc((delimsFound + 2) * sizeof(char*));
+	char* word = (char*) malloc(20000);
+	char delimStr[2];
+	delimStr[0] = delim;
+	delimStr[1] = '\0';
+	word = strtok(str, delimStr);
+	i = 0;
+	while (word != NULL){ 
+		split[i] = (word);
+		word = strtok(NULL, delimStr);
+		if (!word) break;
+		i++;
+	}
+	split[++i] = NULL;
+	return split;
+}
+
+// creates string to be sent to client
+char* createSendString(char* file){
+	int i;
+	int fd = open(file, O_RDONLY, 0);
+	char* str = readFromFile(fd);
+	char** splitFilePath = splitString(strdup(file), '/');
+	for(i = 0; splitFilePath[i + 1] != NULL; i++);
+	char* fileName = splitFilePath[i];
+	char** split = strcmp(fileName, ".Manifest") == 0 ? splitString(str, '\n'): NULL;
+	char* sendString = (char*) malloc (2000000);
+	strcpy(sendString, "");
+	close(fd);
+	char numAsStr[10];
+	strcpy(numAsStr,"");
+	if (split != NULL){
+		for (i = 0; split[i] != NULL; i++){
+			char** splitData = splitString(split[i], ' ');
+			strcat(sendString, ":");
+			sprintf(numAsStr,"%d",strlen(splitData[1]));
+			strcat(sendString, numAsStr);
+			strcat(sendString, ":");
+			strcat(sendString, splitData[1]);
+			fd = open(splitData[2], O_RDONLY, 0);
+			str = readFromFile(fd);
+			strcat(sendString, ":");
+			sprintf(numAsStr,"%d",strlen(str));
+			strcat(sendString, numAsStr);
+			strcat(sendString, ":");
+			strcat(sendString, str);
+			close(fd);
+		}
+	}
+	else{
+		// number of files seems unnecessary
+		// strcat(sendString, ":1:");
+		strcat(sendString, ":");
+		sprintf(numAsStr, "%d", strlen(file));
+		strcat(sendString, numAsStr);
+		strcat(sendString, ":");
+		strcat(sendString, file);
+		strcat(sendString, ":");
+		sprintf(numAsStr, "%d", strlen(str));
+		strcat(sendString, numAsStr);
+		strcat(sendString, ":");
+		strcat(sendString, str);
+	}
+	return sendString;
+}
+
+void sendManifest(char* projectName){
+	int i;
+	char* file = (char*) malloc(strlen(projectName) + strlen("/.Manifest") + 1);
+	strcpy(file, projectName);
+	strcat(file, "/.Manifest");
+	int fd = open(file, O_RDONLY, 0);
+	char* str = readFromFile(fd);
+	char* sendString = (char*) malloc (2000000);
+	strcpy(sendString, "");
+	close(fd);
+	char numAsStr[10];
+	strcpy(numAsStr,"");
+	strcat(sendString, ":");
+	sprintf(numAsStr, "%d", strlen(file));
+	strcat(sendString, numAsStr);
+	strcat(sendString, ":");
+	strcat(sendString, file);
+	strcat(sendString, ":");
+	sprintf(numAsStr, "%d", strlen(str));
+	strcat(sendString, numAsStr);
+	strcat(sendString, ":");
+	strcat(sendString, str);
+}
+
+
+void parseInputString(char* str){
+	char** split = splitString(str, ':');
+	int i = 0;
+	int fd;
+	int fileSize;
+	// every file has 4 index spots, 2 for strlen of filepath and content, and 2 for filepath and content
+	int fileDataCounter = 0;
+	// split[0] is most likely command (tbd for parsing)
+	// split [1] is number of files
+	while(split[i] != NULL){
+		if (fileDataCounter == 4) {
+			fileDataCounter = 0;
+			close(fd);
+		}
+		if (i == 0){
+			i++;
+			continue; // Temporary, need to figure out what to do with command
+		}
+		if (i == 1){
+			i++;
+			continue; // Temporary, need to figure out what to do with number of files
+		}
+		printf("%s\n", split[i]);
+		if (fileDataCounter == 0){
+			char** splitFilePath = splitString(split[i], '/');
+			int j = 0;
+			while (splitFilePath[j + 1] != NULL) j++;
+			char* fp = (char*) malloc(strlen("createdFiles/") + strlen(splitFilePath[j]));
+			strcpy(fp, "");
+			strcat(fp, "createdFiles/");
+			strcat(fp, splitFilePath[j]);
+			fd = open(fp, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IXUSR);
+			if (fd < 0) perror("Unable to open/create fd error: \n");
+		}
+		if (fileDataCounter == 1) fileSize = atoi(split[i]);
+		if (fileDataCounter == 2){
+			write(fd, split[i], fileSize);
+		}
+		fileDataCounter++;
+		i++;
+	}
+}
+
 void checkout(char* split[]){}
 
 void update(char* split[]){}
@@ -39,7 +197,7 @@ void splitInput(char* input){
 	int colons = 0;
 	int i;
 	for (i = 0; i < strlen(input); i++){
-clear		if (input[i] == ':') colons++;
+		if (input[i] == ':') colons++;
 	}
 	char* split[colons + 1];
 	for (i = 0; i < colons + 1; i++) split[i] = (char*) malloc(sizeof(char*));
@@ -64,7 +222,7 @@ clear		if (input[i] == ':') colons++;
 	else if (strcmp(split[0], "history") == 0) history(split);
 	else if (strcmp(split[0], "rollback") == 0) rollback(split);
 	else printf("Incorrect command\n");
-clear	free(word);
+	free(word);
 	word = NULL;
 	for (i = 0; i < colons + 1; i++) free(split[i]);
 }
@@ -74,7 +232,7 @@ void runServer(){
 	struct sockaddr_in address;
 	int opt = 1;
 	int addrlen = sizeof(address);
-	char buffer[1024] = {0};
+	char buffer[1001000] = {0};
 	// Creating socket file descriptor 
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
 		perror("socket failed");
@@ -111,14 +269,15 @@ void runServer(){
 		}
 		if (new_socket > highestClientSocket) highestClientSocket = new_socket;
 		printf("Client has connected\n");
-		while((bytes = read(new_socket, buffer, 1000)) != 0){
-			readBytes += bytes;
-			if (readBytes >= .6 * maxSizeOfInput){
-				maxSizeOfInput *= 2;
-				inputReceived = realloc(inputReceived, maxSizeOfInput);
-			}
-			strcat(inputReceived, buffer);
+		read(new_socket, buffer, 1000000);
+		readBytes += bytes;
+		if (readBytes >= .6 * maxSizeOfInput){
+			maxSizeOfInput *= 2;
+			inputReceived = realloc(inputReceived, maxSizeOfInput);
 		}
+		strcat(inputReceived, buffer);
+		printf("client sent: %s\n", inputReceived);
+		send(new_socket, inputReceived, strlen(inputReceived), 0);
 		splitInput(inputReceived);
 		free(inputReceived);
 	}

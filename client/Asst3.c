@@ -8,7 +8,6 @@ int connectToServer(){
 	struct sockaddr_in address; 
 	int valread; 
 	struct sockaddr_in serv_addr; 
-	char *hello = "Hello from client"; 
 	char buffer[1024] = {0}; 
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){ 
 		printf("\n Socket creation error \n"); 
@@ -19,32 +18,63 @@ int connectToServer(){
   
 	serv_addr.sin_family = AF_INET; 
 	serv_addr.sin_port = htons(port); 
-     
 	// Convert IPv4 and IPv6 addresses from text to binary form 
+	
 	if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0){ 
 		printf("\nInvalid address/ Address not supported \n"); 
 		return -1; 
 	} 
-  
+ 
 	while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
 		time_t tim;
 		printf("Unable to connect to socket, trying again in 3 seconds\n");
 		sleep(3); 
 	}
+	printf("%d\n", sock);
 	printf("Connected to server\n");
 	return 0; 
 } 
 
+void sendToServer(char* sendText){
+	char buff[100];
+	printf("%d\n", sock);
+	printf("Before send\n");
+	send(sock, sendText, strlen(sendText), 0);
+	printf("After send\n");
+	read(sock, buff, 80);
+	printf("server sent: %s\n", buff);
+}
+
 void configure(){
-	int fd = open("./.configure", O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IXUSR);
-	write(fd, ip, strlen(ip));
-	write(fd, "\n", 2);
-	write(fd, port, sizeof(unsigned short));
+	char portStr[6];
+	strcpy(portStr, "");
+	int fd = open(".configure", O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IXUSR);
+	if (fd < 0){
+		printf("Unable to configure\nTerminating program");
+		return;
+	}
+	char buff[2];
+	strcpy(buff, "");
+	buff[0] = '\n';
+	buff[1] = '\0';
+	char strToWrite[50];
+	sprintf(portStr, "%d", port);
+	strcpy(strToWrite, "");
+	strcat(strToWrite, ip);
+	strcat(strToWrite, buff);
+	strcat(strToWrite, portStr);
+	write(fd, strToWrite, strlen(strToWrite));
 	close(fd);
-	char c[2];
-	char s[500];
-	strcpy(c, "");
-	strcpy(s, "");
+	printf("Configured successfully!\n");
+}
+
+int readConfigure(){
+	int fd = open(".configure", O_RDONLY);
+	if (fd < 0) return 0;
+	char* configData = readFromFile(fd);
+	char** splitConfigData = splitString(configData, '\n');
+	ip = splitConfigData[0];
+	port = atoi(splitConfigData[1]);
 }
 
 char* readFromFile(int fd){
@@ -81,9 +111,10 @@ char** splitString(char* str, char delim){
 	while (word != NULL){ 
 		split[i] = (word);
 		word = strtok(NULL, delimStr);
+		if (!word) break;
 		i++;
 	}
-	split[i] = NULL;
+	split[++i] = NULL;
 	return split;
 }
 
@@ -92,7 +123,10 @@ char* createSendString(char* file){
 	int i;
 	int fd = open(file, O_RDONLY, 0);
 	char* str = readFromFile(fd);
-	char** split = strcmp(file, ".Manifest") == 0 ?  splitString(str, '\n'): NULL;
+	char** splitFilePath = splitString(strdup(file), '/');
+	for(i = 0; splitFilePath[i + 1] != NULL; i++);
+	char* fileName = splitFilePath[i];
+	char** split = strcmp(fileName, ".Manifest") == 0 ? splitString(str, '\n'): NULL;
 	char* sendString = (char*) malloc (2000000);
 	strcpy(sendString, "");
 	close(fd);
@@ -100,12 +134,13 @@ char* createSendString(char* file){
 	strcpy(numAsStr,"");
 	if (split != NULL){
 		for (i = 0; split[i] != NULL; i++){
+			char** splitData = splitString(split[i], ' ');
 			strcat(sendString, ":");
-			sprintf(numAsStr,"%d",strlen(split[i]));
+			sprintf(numAsStr,"%d",strlen(splitData[1]));
 			strcat(sendString, numAsStr);
 			strcat(sendString, ":");
-			strcat(sendString, split[i]);
-			fd = open(split[i], O_RDONLY, 0);
+			strcat(sendString, splitData[1]);
+			fd = open(splitData[2], O_RDONLY, 0);
 			str = readFromFile(fd);
 			strcat(sendString, ":");
 			sprintf(numAsStr,"%d",strlen(str));
@@ -129,12 +164,35 @@ char* createSendString(char* file){
 		strcat(sendString, ":");
 		strcat(sendString, str);
 	}
-	
 	return sendString;
 }
 
+void sendManifest(char* projectName){
+	int i;
+	char* file = (char*) malloc(strlen(projectName) + strlen("/.Manifest") + 1);
+	strcpy(file, projectName);
+	strcat(file, "/.Manifest");
+	int fd = open(file, O_RDONLY, 0);
+	char* str = readFromFile(fd);
+	char* sendString = (char*) malloc (2000000);
+	strcpy(sendString, "");
+	close(fd);
+	char numAsStr[10];
+	strcpy(numAsStr,"");
+	strcat(sendString, ":");
+	sprintf(numAsStr, "%d", strlen(file));
+	strcat(sendString, numAsStr);
+	strcat(sendString, ":");
+	strcat(sendString, file);
+	strcat(sendString, ":");
+	sprintf(numAsStr, "%d", strlen(str));
+	strcat(sendString, numAsStr);
+	strcat(sendString, ":");
+	strcat(sendString, str);
+}
+
+
 void parseInputString(char* str){
-	printf("%s\n", str);
 	char** split = splitString(str, ':');
 	int i = 0;
 	int fd;
@@ -158,7 +216,6 @@ void parseInputString(char* str){
 		}
 		printf("%s\n", split[i]);
 		if (fileDataCounter == 0){
-			printf("%s\n\n", split[i]);
 			char** splitFilePath = splitString(split[i], '/');
 			int j = 0;
 			while (splitFilePath[j + 1] != NULL) j++;
@@ -184,124 +241,7 @@ void update(char* project){}
 
 void upgrade(char* project){}
 
-void commit(char* project){
-
-  char rmcmd[100];
-  sprintf(rmcmd, "createdFiles/%s/.Commit", project);
-  system(rmcmd);
-  
-  if(!projectExists(project))
-  {
-    printf("Project does not exist!\n");
-    return;
-  }
-
-  char build_path[50];
-  sprintf(build_path, "createdFiles/%s/.Update", project);
-
-  struct stat stat_record;
-  if(stat(build_path, &stat_record) || stat_record.st_size <= 1)
-  {
-    // ask server for Manifest --> to be imlemented 
-    // comapare .Manifest 
-
-    // check if server manifest is empty --> first commit 
-    char server_manifest[50];
-    sprintf(server_manifest, ".Manifest"); // supposed to be actual server manifest
-
-    char client_manifest[50];
-    sprintf(client_manifest, "createdFiles/%s/.Manifest", project);
-    if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
-    {
-      printf("Nothing to commit\n");
-      return;
-    }
-
-    if(stat(server_manifest, &stat_record) || stat_record.st_size <= 1)
-    {
-      //server manifest is empty 
-      //cp client/.Manifest to .Commit 
-      char cmd[50];
-      sprintf(cmd, "cp createdFiles/%s/.Manifest createdFiles/%s/.Commit", project, project);
-      system(cmd);
-      //send commit file to server 
-      printf("Commited successfully\n");
-      return;
-
-    }
-    else
-    {
-      FILE * server_man = fopen(".Manifest", "r");
-      char cli_manifest[50];
-      sprintf(cli_manifest, "createdFiles/%s/.Manifest", project);
-      FILE * client_man = fopen(cli_manifest, "r");
-
-      int clfd = open(cli_manifest, O_RDONLY);
-      int sfd = open(".Manifest", O_RDONLY);
-      int dif = compareFiles(server_man, client_man);
-      if(dif == 0)
-      {
-        printf("Everything up-to-date. Nothing to commit");
-        return;
-      }
-      else
-      {
-
-        char * cl = readFromFile(clfd);
-        char * sl =  readFromFile(sfd);
-
-        
-        char ** cl_list = splitLine(cl, '\n');
-        char ** sl_list = splitLine(sl, '\n');
-
-        int i =0;
-        while(cl_list[i])
-        {
-          char cln[1000];
-          strcpy(cln, cl_list[i]);
-
-          char sln[1000];
-          strcpy(sln, cl_list[i]);
-          
-          char ** cline = splitLine(cln, ' ');
-          char ** sline = splitLine(sln, ' ');
-          char  **matched = getMatchingLine(cline[1] , sl_list);
-          if(matched == NULL) // commit file doesnt have, add to .Commit
-          {
-            char cmd[50];
-            sprintf(cmd, "echo %s >> createdFiles/%s/.Commit", cl_list[i], project);
-            system(cmd);
-          }
-          else //check hashes
-          {
-            if(strcmp(cline[0],matched[0])==0) //hashes match, continue
-            {
-              i++;
-              continue;
-            }
-            else
-            {
-              char cmd[50];
-              sprintf(cmd, "echo %s >> createdFiles/%s/.Commit", cl_list[i], project);
-              system(cmd);
-
-            } 
-          }
-          i++;
-        } // still have to check that server contains file that client doesn't
-        return;
-
-      }
-
-
-    }
-  }
-  else 
-  {
-    printf("Repository not up to date, Update before commiting!\n");
-    return;
-  }
-}
+void commit(char* project){}
 
 void push(char* project){}
 
@@ -312,7 +252,6 @@ void create(char* projectName){
 	strcpy(sendText, "");
 	strcat(sendText, "create:");
 	strcat(sendText, projectName);
-	send(sock, sendText, strlen(sendText), 0);
 }
 
 void destroy(char* project){}
@@ -328,7 +267,6 @@ void history(char* project){}
 void rollback(char* project, char* version){}
 
 int main(int argc, char* args[]){
-	int configured = 1;
 	int validOption = 1;
 	//  Terminates program if no additional arguments are entered
 	if (argc < 2){
@@ -344,17 +282,20 @@ int main(int argc, char* args[]){
 		ip = args[2];
 		port = atoi(args[3]);
 		configure();
-		configured == 1;
-		printf("End of configured\n");
+		return 0;
 	}
-
+	if (readConfigure() == 0){
+		printf("Unable to retrieve configuration data\nTerminating program\n");
+		return 0;
+	}
 	// Breaks program if server has not been configured
-	else if (configured == 0){
+/*	else if (configured == 0){
 		printf("Server has not yet been configured\nTerminating program\n");
 		return 0;
 	}
-	// If server has been configured, performs desired command
-	else if (argc == 3){
+*/	// If server has been configured, performs desired command
+	connectToServer();
+	if (argc == 3){
 		if (strcmp(args[1], "checkout") == 0) checkout(args[2]);
 		else if (strcmp(args[1], "update") == 0) update(args[2]);
 		else if (strcmp(args[1], "upgrade") == 0) upgrade(args[2]);
@@ -372,16 +313,17 @@ int main(int argc, char* args[]){
  		else if (strcmp(args[1], "rollback") == 0) rollback(args[2], args[3]);
 		else validOption = 0;
 	}
+	else validOption = 0;
 	if (validOption == 0) printf("Invalid Option\n");
-	// connectToServer();
+	sendToServer("This is a test message");
 	// create("Test");
 	// char* s = createSendString("testFiles/test1.txt");
-	char* s = createSendString(".Manifest");
+	char* s = createSendString("testFiles/test1.txt");
 	char* s2 = (char*) malloc(strlen("a") + strlen(s));
 	strcpy(s2, "a");
 	strcat(s2, s);
-	printf("%s\n", s2);
-	parseInputString(s2);
+	sendManifest("projects/pr1");
+	//parseInputString(s2);
 }
 
 

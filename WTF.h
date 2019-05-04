@@ -139,19 +139,6 @@ int fileInProject(char * projectName, char * fileName)
 
 }
 
+char* readFromFile(int fd);
 
-char* readFromFile(int fd){
-	int maxCapacity = 4096;
-	char* buff = (char*) malloc(1024);
-	strcpy(buff, "");
-	char* str = (char*) malloc(maxCapacity);
-	strcpy(str, "");
-	while(read(fd, buff, 1020) != 0){
-		if (strlen(str) > .75 * maxCapacity){
-			maxCapacity *= 2;
-			str = realloc(str, maxCapacity);
-		}
-		str = strcat(str, strdup(buff));
-	}
-	return str;
-}
+char** splitString(char* str, char delim);
