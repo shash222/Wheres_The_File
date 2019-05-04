@@ -144,7 +144,7 @@ int projectFileExists()
         closedir(dir);
         return 1;
   }
-  else if (ENOENT == errno) return 0;
+  return 0;
 }
 
 

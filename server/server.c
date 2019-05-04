@@ -209,7 +209,7 @@ void parseInputString(char* str){
       i++;
       }
       */
-  char** split = splitString(str, ':');
+char** split = splitString(str, ':');
   if (strcmp(split[0], "checkout") == 0) checkout(split);
   else if (strcmp(split[0], "update") == 0) update(split);
   else if (strcmp(split[0], "upgrade") == 0) upgrade(split);
@@ -226,7 +226,7 @@ void parseInputString(char* str){
   //free(word);
   //word = NULL;
   int i;
-  for (i = 0; split[i] != NULL; i++) free(split[i]);
+  for (i = 0; !split[i]; i++) free(split[i]);
 }
 
 
@@ -246,7 +246,7 @@ void create(char* split[]){
   strcpy(projectName, split[1]); 
   //create file locally 
   char cmd[50];
-  if(!projectFileExists) system("mkdir projects");
+  if(!projectFileExists()) system("mkdir projects");
   if(projectExists(projectName))
   {
     printf("Project Already Exists!\n");
