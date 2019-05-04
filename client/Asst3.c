@@ -252,6 +252,33 @@ void create(char* projectName){
 	strcpy(sendText, "");
 	strcat(sendText, "create:");
 	strcat(sendText, projectName);
+	//send(sock, sendText, strlen(sendText), 0);
+  //create file locally 
+  char cmd[50];
+  if(!projectFileExists) system("mkdir projects");
+  else
+  {
+    if(projectExists(projectName))
+    {
+      printf("Project Already Exists!\n");
+      return;
+    }
+    char cmd[50];
+    sprintf(cmd, "mkdir projects/%s", projectName);
+    system(cmd);
+
+    //add .Manifest
+    sprintf(cmd, "touch projects/%s/.Manifest", projectName);
+    system(cmd);
+    
+    char file_loc [20];
+    sprintf(file_loc, "projects/%s/.Manifest", projectName);
+
+    //set Manifest to V1
+    addFileHash(".Manifest", file_loc, 1, projectName);
+    return;
+  }
+  
 }
 
 void destroy(char* project){}
@@ -294,7 +321,7 @@ int main(int argc, char* args[]){
 		return 0;
 	}
 */	// If server has been configured, performs desired command
-	connectToServer();
+connectToServer();
 	if (argc == 3){
 		if (strcmp(args[1], "checkout") == 0) checkout(args[2]);
 		else if (strcmp(args[1], "update") == 0) update(args[2]);
@@ -325,22 +352,3 @@ int main(int argc, char* args[]){
 	sendManifest("projects/pr1");
 	//parseInputString(s2);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
