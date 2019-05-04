@@ -35,6 +35,11 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int new_socket;
 int highestClientSocket;
 
+void sendToClient(char* sendText, int socketfd){
+  printf("%s\n", sendText);
+  send(socketfd, sendText, strlen(sendText), 0);
+}
+
 char* readFromFile(int fd){
   int maxCapacity = 4096;
   char* buff = (char*) malloc(1024);
@@ -125,10 +130,11 @@ char* createSendString(char* file){
   return sendString;
 }
 
-void sendManifest(char* projectName){
+void sendManifest(char* projectName, int socketfd){
   int i;
-  char* file = (char*) malloc(strlen(projectName) + strlen("/.Manifest") + 1);
-  strcpy(file, projectName);
+  char* file = (char*) malloc(strlen("projects/") + strlen(projectName) + strlen("/.Manifest") + 1);
+  strcpy(file, "projects/");
+  strcat(file, projectName);
   strcat(file, "/.Manifest");
   int fd = open(file, O_RDONLY, 0);
   char* str = readFromFile(fd);
@@ -147,6 +153,7 @@ void sendManifest(char* projectName){
   strcat(sendString, numAsStr);
   strcat(sendString, ":");
   strcat(sendString, str);
+  sendToClient(sendString, socketfd);
 }
 
 void createFiles(char** split){
@@ -190,45 +197,6 @@ void createFiles(char** split){
     i++;
   }
 }
-
-
-void parseInputString(char* str){
-  /*	int colons = 0;
-      int i;
-      for (i = 0; i < strlen(input); i++){
-      if (input[i] == ':') colons++;
-      }
-      char* split[colons + 1];
-      for (i = 0; i < colons + 1; i++) split[i] = (char*) malloc(sizeof(char*));
-      char* word = (char*) malloc(200);
-      word = strtok(input, ":");
-      i = 0;
-      while(word != NULL){
-      split[i] = strdup(word);
-      word = strtok(NULL, ":");
-      i++;
-      }
-      */
-char** split = splitString(str, ':');
-  if (strcmp(split[0], "checkout") == 0) checkout(split);
-  else if (strcmp(split[0], "update") == 0) update(split);
-  else if (strcmp(split[0], "upgrade") == 0) upgrade(split);
-  else if (strcmp(split[0], "commit") == 0) commit(split);
-  else if (strcmp(split[0], "push") == 0) push(split);
-  else if (strcmp(split[0], "create") == 0) create(split);
-  else if (strcmp(split[0], "destroy") == 0) destroy(split);
-  else if (strcmp(split[0], "add") == 0) add(split);
-  else if (strcmp(split[0], "rem") == 0) rem(split);
-  else if (strcmp(split[0], "currentVersion") == 0) currentVersion(split);
-  else if (strcmp(split[0], "history") == 0) history(split);
-  else if (strcmp(split[0], "rollback") == 0) rollback(split);
-  else printf("Incorrect command\n");
-  //free(word);
-  //word = NULL;
-  int i;
-  for (i = 0; !split[i]; i++) free(split[i]);
-}
-
 
 void checkout(char* split[]){}
 
@@ -332,8 +300,24 @@ void runServer(){
     }
     strcat(inputReceived, buffer);
     printf("client sent: %s\n", inputReceived);
-    send(new_socket, inputReceived, strlen(inputReceived), 0);
-    parseInputString(inputReceived);
+    char** split = splitString(inputReceived, ':');
+    if (strcmp(split[0], "checkout") == 0) checkout(split);
+    else if (strcmp(split[0], "update") == 0) update(split);
+    else if (strcmp(split[0], "upgrade") == 0) upgrade(split);
+    else if (strcmp(split[0], "commit") == 0) commit(split);
+    else if (strcmp(split[0], "push") == 0) push(split);
+    else if (strcmp(split[0], "create") == 0) create(split);
+    else if (strcmp(split[0], "destroy") == 0) destroy(split);
+    else if (strcmp(split[0], "add") == 0) add(split);
+    else if (strcmp(split[0], "rem") == 0) rem(split);
+    else if (strcmp(split[0], "currentVersion") == 0) currentVersion(split);
+    else if (strcmp(split[0], "history") == 0) history(split);
+    else if (strcmp(split[0], "rollback") == 0) rollback(split);
+    else printf("Incorrect command\n");
+    int i;
+    for (i = 0; !split[i]; i++) free(split[i]);
+    sendManifest("pr1", new_socket);
+    //send(new_socket, manifestData, strlen(manifestData), 0);
     free(inputReceived);
   }
 }
