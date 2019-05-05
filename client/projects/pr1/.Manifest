@@ -1,2 +1,2 @@
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 test2.txt projects/pr1/test2.txt 2  
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 test1.txt projects/pr1/test1.txt 1  
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .Manifest projects/pr1/.Manifest 1  
+b9bb97a8cf1c11c1511b558125691595745c4ec5703fc439759ec6515bf17e8f test1.txt projects/pr1/test1.txt 1  

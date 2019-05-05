@@ -37,7 +37,7 @@ int highestClientSocket;
 
 void sendToClient(char* sendText, int socketfd){
   printf("%s\n", sendText);
-  send(socketfd, sendText, strlen(sendText), 0);
+  send(socketfd, sendText, strlen(sendText), socketfd);
 }
 
 char* readFromFile(int fd){
@@ -153,7 +153,9 @@ void sendManifest(char* projectName, int socketfd){
   strcat(sendString, numAsStr);
   strcat(sendString, ":");
   strcat(sendString, str);
-  sendToClient(sendString, socketfd);
+    printf("sending: %s\n", str);
+  sendToClient(str, socketfd);
+  return;
 }
 
 void createFiles(char** split){
@@ -204,35 +206,46 @@ void update(char* split[]){}
 
 void upgrade(char* split[]){}
 
-void commit(char* split[]){}
+void commit(char* split[])
+{
+  char * project = split[1];
+  char * commit = split[2];
+  char project_loc[50];
+  sprintf(project_loc, "projects/%s/.Commit", project);
+  FILE * commit_file = fopen(project_loc, "w");
+  fprintf(commit_file, "%s", commit);
+  //fclose(commit_file);
+  return;
+
+}
 
 void push(char* split[]){}
 
 void create(char* split[]){
-
-  char projectName[50];
-  strcpy(projectName, split[1]); 
   //create file locally 
+  char projectName[50];
+  strcpy(projectName,split[1]); 
+  printf("%s", projectName);
   char cmd[50];
-  if(!projectFileExists()) system("mkdir projects");
+  if(!projectFileExists()) mkdir("projects", ACCESSPERMS);
   if(projectExists(projectName))
   {
     printf("Project Already Exists!\n");
     return;
   }
-  sprintf(cmd, "mkdir projects/%s", projectName);
-  system(cmd);
-
+  sprintf(cmd, "projects/%s", projectName);
+  mkdir(cmd, ACCESSPERMS);
+ 
 
   //add .Manifest
-  sprintf(cmd, "touch projects/%s/.Manifest", projectName);
-  system(cmd);
+  sprintf(cmd, "projects/%s/.Manifest", projectName);
+  FILE* fp = fopen(cmd, "w");
+  //fclose(fp);
+  
 
-  char file_loc [20];
-  sprintf(file_loc, "projects/%s/.Manifest", projectName);
 
   //set Manifest to V1
-  addFileHash(".Manifest", file_loc, 1, projectName);
+  addFileHash(".Manifest", cmd, 1, projectName);
   return;
 
 }
@@ -313,6 +326,7 @@ void runServer(){
     else if (strcmp(split[0], "currentVersion") == 0) currentVersion(split);
     else if (strcmp(split[0], "history") == 0) history(split);
     else if (strcmp(split[0], "rollback") == 0) rollback(split);
+    else if (strcmp(split[0], "manifest") == 0) sendManifest(split[1], new_socket);
     else printf("Incorrect command\n");
     int i;
     for (i = 0; !split[i]; i++) free(split[i]);
@@ -336,18 +350,4 @@ int main(int argc, char* args[]){
   runServer();
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -35,12 +35,11 @@ int connectToServer(){
   return 0; 
 } 
 
-void sendToServer(char* sendText){
+char *sendToServer(char* sendText){
   char buff[100];
-  printf("%d\n", sock);
   send(sock, sendText, strlen(sendText), 0);
   read(sock, buff, 80);
-  printf("server sent: %s\n", buff);
+  return buff;
 }
 
 void configure(){
@@ -217,9 +216,9 @@ void parseInputString(char* str){
       char** splitFilePath = splitString(split[i], '/');
       int j = 0;
       while (splitFilePath[j + 1] != NULL) j++;
-      char* fp = (char*) malloc(strlen("createdFiles/") + strlen(splitFilePath[j]));
+      char* fp = (char*) malloc(strlen("projects/") + strlen(splitFilePath[j]));
       strcpy(fp, "");
-      strcat(fp, "createdFiles/");
+      strcat(fp, "projects/");
       strcat(fp, splitFilePath[j]);
       fd = open(fp, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IXUSR);
       if (fd < 0) perror("Unable to open/create fd error: \n");
@@ -239,7 +238,279 @@ void update(char* project){}
 
 void upgrade(char* project){}
 
-void commit(char* project){}
+
+void commit(char * project_Name)
+{
+
+
+  char path[50];
+  sprintf(path, "projects/%s", project_Name);
+
+      char commit_path[50];
+      sprintf(commit_path, "%s/.Commit", path);
+      removeDir(commit_path);
+
+
+  if(!projectExists(project_Name))
+  {
+    printf("Project does not exist!\n");
+    return;
+  }
+
+  char build_path[50];
+  sprintf(build_path, "%s/.Update", path);
+
+  struct stat stat_record;
+  if(stat(build_path, &stat_record) || stat_record.st_size <= 1)
+  {
+    // ask server for Manifest --> to be imlemented 
+    // comapare .Manifest 
+
+    // check if server manifest is empty --> first commit 
+    char  * server_manifest = sendToServer("manifest:pr1");
+    printf("%s\n", server_manifest);
+    exit(0);
+
+    char ** smanifest_split_line = splitLine(server_manifest, '\n');
+    char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
+
+    
+
+    char client_manifest[50];
+    sprintf(client_manifest, "%s/.Manifest", path);
+
+    int cmfd = open(client_manifest, O_RDONLY, 0);
+    char * local_manifest_data = readFromFile(cmfd);
+    close(cmfd);
+
+    char ** local_split = splitLine(local_manifest_data, '\n');
+    char ** cmanifest_line = getMatchingLine(".Manifest", local_split);
+
+    if(atoi((smanifest_line)[3]) != atoi((cmanifest_line)[3]))
+    {
+      printf("Repository not Up to date.\n");
+      return;
+    }
+
+
+
+    if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
+    {
+      printf("Nothing to commit\n");
+      return;
+    }
+
+    if(strcmp(server_manifest, "") ==0)
+    {
+      //server manifest is empty 
+      //cp client/.Manifest to .Commit 
+
+      FILE * fp1 = fopen(client_manifest, "r");
+
+      char commit_File[50];
+      sprintf(commit_File,"%s/.Commit", path);
+
+      FILE * fp2 = fopen(commit_File, "w");
+      fileCopy(fp1, fp2);
+
+      char sed[50];
+      sprintf(sed, "sed 's/$/A/' %s/.Commit", path);
+
+
+      int fd = open(commit_path, O_RDONLY, 0);
+      char * commit_data = readFromFile(fd);
+
+      char dataToSend[strlen(commit_data) + 10];
+      sprintf(dataToSend, "commit:%s:%s", project_Name, commit_data);
+
+      sendToServer(dataToSend);
+      printf("Commited Successfully\n");
+
+
+
+      return;
+
+    }
+    else
+    {
+      char clm[50];
+      sprintf(clm, "%s/.Manifest", path);
+
+      int clfd = open(client_manifest, O_RDONLY);
+      int sfd = open(".Manifest", O_RDONLY);
+
+      char * cl = readFromFile(clfd);
+      //char * sl =  readFromFile(sfd);
+      char * sl =  server_manifest;
+
+      int dif = compareFiles(cl, sl);
+      if(dif == 0)
+      {
+        printf("Everything up-to-date. Nothing to commit\n");
+        return;
+      }
+      else
+      {
+
+        char ** cl_list = splitLine(cl, '\n');
+        char ** sl_list = splitLine(sl, '\n');
+
+        int i =0;
+        while(cl_list[i])
+        {
+
+
+          char cln[100];
+          strcpy(cln, cl_list[i]);
+
+          char sln[100];
+          strcpy(sln, sl_list[i]);
+
+          char ** cline = splitLine(cln, ' ');
+          char ** sline = splitLine(sln, ' ');
+
+          char  **matched = getMatchingLine(cline[1] , sl_list);
+          if(matched == NULL) // commit file doesnt have, add to .Commit
+          {
+            char cmd[50];
+            sprintf(cmd, "%s/.Commit",  path);
+            FILE * f = fopen(cmd, "a");
+            fprintf(f,"%s %s %s %c", cline[0], cline[1], cline[2], 'A');
+            fclose(f); 
+          }
+          else //check hashes
+          {
+            if(strcmp(cline[0],matched[0])==0) //hashes match, continue
+            {
+              i++;
+              continue;
+            }
+            else
+            {
+              if(atoi(matched[3]) >= atoi(cline[3]))
+              {
+                printf("Repository not up-to-date. Update before commiting\n");
+                return;
+              }
+
+
+            char cmd[50];
+            sprintf(cmd, "%s/.Commit",  path);
+            FILE * f = fopen(cmd, "a");
+            fprintf(f,"%s %s %s %c", cline[0], cline[1], cline[2], 'U');
+            fclose(f); 
+
+
+            } 
+          }
+          i++;
+        } 
+        i = 0;
+        while(sl_list[i])
+        {
+
+
+          char sln[100];
+          strcpy(sln, sl_list[i]);
+
+          char ** sline = splitLine(sln, ' ');
+
+          if(!fileInProject(sline[1], project_Name))
+          {
+
+            char cmd[50];
+            sprintf(cmd, "%s/.Commit",  path);
+            FILE * f = fopen(cmd, "a");
+            fprintf(f,"%s %s %s %c", sline[0], sline[1], sline[2], 'A');
+            fclose(f); 
+
+          }
+          i++;
+        }
+
+        char commit_File[50];
+        sprintf(commit_File,"%s/.Commit", path);
+
+
+        int fd = open(commit_File, O_RDONLY, 0);
+        char * commit_data = readFromFile(fd);
+
+        char dataToSend[strlen(commit_data) + 10];
+        sprintf(dataToSend, "commit:%s:%s", project_Name, commit_data);
+
+        sendToServer(dataToSend);
+        printf("Commited successfully\n");
+
+        return;
+
+      }
+
+
+    }
+  }
+  else 
+  {
+    printf("Repository not up to date, Update before commiting!\n");
+    return;
+  }
+}
+
+void add(char * projectName, char * fileName)
+{
+  char path[50];
+  sprintf(path, "projects/%s", projectName); 
+  char filepath[50];
+  sprintf(filepath, "%s/%s", path, fileName);
+  if(!projectExists(projectName)) 
+  {
+    printf("Project does not exist!\n");
+    return;
+  }
+  else
+  {
+    if(!fileInProject(projectName, fileName))
+    {
+      printf("File does not exist!\n");
+      return;
+    } 
+    else
+    {
+
+      char client_manifest[50];
+      sprintf(client_manifest, "%s/.Manifest", path);
+      struct stat stat_record;
+      if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
+      {
+        addFileHash(fileName, filepath, 1, projectName); 
+      }
+      else
+      {
+        //check if file exists, if it does delete and add with version + 1
+        //else add with v1
+        int fd = open(client_manifest, O_RDONLY);
+        char * manifest_data = readFromFile(fd);
+        char ** manifestLines = splitLine(manifest_data, '\n');
+        char ** match = getMatchingLine(fileName, manifestLines);
+
+        if(match)
+        {
+          int version = atoi(match[3]);          
+          delFileHash(fileName, projectName);
+          addFileHash(fileName, filepath, version+1, projectName); 
+        }
+        else
+        {
+          addFileHash(fileName, filepath, 1, projectName); 
+        }
+      }
+
+    }
+  }
+
+}
+
+
+
 
 void push(char* project){}
 
@@ -250,35 +521,36 @@ void create(char* projectName){
   strcpy(sendText, "");
   strcat(sendText, "create:");
   strcat(sendText, projectName);
-  send(sock, sendText, strlen(sendText), 0);
+  printf("%s:", sendText);
+  sendToServer(sendText);
   //create file locally 
   char cmd[50];
-  if(!projectFileExists()) system("mkdir projects");
+  if(!projectFileExists()) mkdir("projects",ACCESSPERMS);
   if(projectExists(projectName))
   {
     printf("Project Already Exists!\n");
     return;
   }
-  sprintf(cmd, "mkdir projects/%s", projectName);
-  system(cmd);
+  //open(cmd, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IXUSR);
+  sprintf(cmd, "projects/%s", projectName);
+  mkdir(cmd, ACCESSPERMS);
 
 
   //add .Manifest
-  sprintf(cmd, "touch projects/%s/.Manifest", projectName);
-  system(cmd);
+  sprintf(cmd, "projects/%s/.Manifest", projectName);
+  FILE *file = fopen(cmd, "w");
+  fclose(file);
 
-  char file_loc [20];
-  sprintf(file_loc, "projects/%s/.Manifest", projectName);
 
   //set Manifest to V1
-  addFileHash(".Manifest", file_loc, 1, projectName);
+  addFileHash(".Manifest", cmd, 1, projectName);
   return;
 
 }
 
 void destroy(char* project){}
 
-void add(char* project, char* filename){}
+//void add(char* project, char* filename){}
 
 void rem(char* project, char* filename){}
 
@@ -346,4 +618,5 @@ int main(int argc, char* args[]){
   strcat(s2, s);
   sendManifest("projects/pr1");
   //parseInputString(s2);
+  return 0;
 }

@@ -64,11 +64,7 @@ void commit(char * project_Name)
       char commit_File[50];
       sprintf(commit_File,"%s/.Commit", path);
 
-      sprint(sendString, "commit:%s", createSendString(commit_File));
-      sendToServer(sendString);
 
-
-      printf("Commited successfully\n");
       return;
 
     }
@@ -100,28 +96,48 @@ void commit(char * project_Name)
         char ** sl_list = splitLine(sl, '\n');
 
         int i =0;
-        while(cl_list[i])
+        while(cl_list[i] || sl_list[i])
         {
-          char cln[1000];
+
+
+          char cln[100];
           strcpy(cln, cl_list[i]);
 
-          char sln[1000];
-          strcpy(sln, cl_list[i]);
+          char sln[100];
+          strcpy(sln, sl_list[i]);
 
           char ** cline = splitLine(cln, ' ');
           char ** sline = splitLine(sln, ' ');
+          if(!cl_list[i] && !sl_list[i]) break;
+          //case where in Manifest, but not 
+          if(!cl_list[i] && sl_list[i])
+          {
+            if(!fileInProject(sline[1], project_Name))
+            {
+
+              char cmd[50];
+              sprintf(cmd, "echo %s >> %s/.Commit", sl_list[i], path);
+              system(cmd); 
+              char commit_File[50];
+              sprintf(commit_File,"%s/.Commit", path);
+              sprintf(cmd, "sed '/^%s:/ s/$/ %c/' %s/.Commit", cline[1], 'D', path);
+              system(cmd); 
+
+            }
+            i++;
+            continue;
+          }
+
           char  **matched = getMatchingLine(cline[1] , sl_list);
           if(matched == NULL) // commit file doesnt have, add to .Commit
           {
             char cmd[50];
             sprintf(cmd, "echo %s >> %s/.Commit", cl_list[i], path);
-            char sendString[100];
+            system(cmd); 
             char commit_File[50];
             sprintf(commit_File,"%s/.Commit", path);
-            sprint(sendString, "commit:%s", createSendString(commit_File));
-            sendToServer(sendString);
-            printf("Commited successfully\n");
-            system(cmd);
+            sprintf(cmd, "sed '/^%s:/ s/$/ %c/' %s/.Commit", cline[1], 'A', path);
+            system(cmd); 
           }
           else //check hashes
           {
@@ -140,25 +156,25 @@ void commit(char * project_Name)
 
               char cmd[50];
               sprintf(cmd, "echo %s >> %s/.Commit", cl_list[i], path);
-
-
-              char sendString[100];
-
-
-              char commit_File[50];
-              sprintf(commit_File,"%s/.Commit", path);
-
-              sprint(sendString, "commit:%s", createSendString(commit_File));
-              sendToServer(sendString);
-
-              printf("Commited successfully\n");
               system(cmd);
+
+
+              sprintf(cmd, "sed '/^%s:/ s/$/ %c/' %s/.Commit", cline[1], 'U', path);
+              system(cmd); 
+
 
             } 
           }
           i++;
-        } // still have to check that server contains file that client doesn't
-        // send .Commit to server if ok 
+        } 
+
+        char commit_File[50];
+        sprintf(commit_File,"%s/.Commit", path);
+        char sendString[100];
+        sprint(sendString, "commit:%s", createSendString(commit_File));
+        sendToServer(sendString);
+        printf("Commited successfully\n");
+
         return;
 
       }
@@ -258,6 +274,6 @@ void currentversion(char * project)
 
 int main()
 {
-  currentversion("pr1");
+  commit("pr1");
   return 0;
 }
