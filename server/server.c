@@ -40,21 +40,6 @@ void sendToClient(char* sendText, int socketfd){
   send(socketfd, sendText, strlen(sendText), 0);
 }
 
-char* readFromFile(int fd){
-  int maxCapacity = 4096;
-  char* buff = (char*) malloc(1024);
-  strcpy(buff, "");
-  char* str = (char*) malloc(maxCapacity);
-  strcpy(str, "");
-  while(read(fd, buff, 1020) != 0){
-    if (strlen(str) > .75 * maxCapacity){
-      maxCapacity *= 2;
-      str = realloc(str, maxCapacity);
-    }
-    str = strcat(str, strdup(buff));
-  }
-  return str;
-}
 
 void sendManifest(char* projectName, int socketfd){
   int i;
@@ -133,7 +118,11 @@ void createFiles(char** split){
 
 void checkout(char* split[]){}
 
-void update(char* split[]){}
+void update(char* split[])
+{
+ printf("hi\n");
+return; 
+}
 
 void upgrade(char* split[]){}
 

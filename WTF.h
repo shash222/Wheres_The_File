@@ -12,6 +12,8 @@
 #include <dirent.h>
 #include <errno.h>
 #include <limits.h>
+#include <openssl/sha.h>
+#include <stdbool.h>
 
 
 char* readFromFile(int fd);
@@ -39,6 +41,23 @@ void addFileHash(char * filename, char * file_loc, int version, char* project)
   sprintf(cmd, "printf '\n' >> %s",projectPath);
   system(cmd);
 }
+
+char* readFromFile(int fd){
+  int maxCapacity = 4096;
+  char* buff = (char*) malloc(1024);
+  strcpy(buff, "");
+  char* str = (char*) malloc(maxCapacity);
+  strcpy(str, "");
+  while(read(fd, buff, 1020) != 0){
+    if (strlen(str) > .75 * maxCapacity){
+      maxCapacity *= 2;
+      str = realloc(str, maxCapacity);
+    }
+    str = strcat(str, strdup(buff));
+  }
+  return str;
+}
+
 
 /*
  * delets fl and current hashsum from client/.Manifest
@@ -227,6 +246,21 @@ void fileCopy(FILE* fp1, FILE * fp2)
   fclose(fp1); 
   fclose(fp2); 
   return;
+}
+char* getFileHash(char * contents) {
+  int x;
+  unsigned char hash [SHA256_DIGEST_LENGTH];// Hash array
+  SHA256_CTX sha256;
+  SHA256_Init(&sha256);
+  SHA256_Update(&sha256, contents, strlen(contents));
+  SHA256_Final(hash, &sha256);
+  char* s = malloc(SHA256_DIGEST_LENGTH*2 + 1);
+  for (x = 0; x < SHA256_DIGEST_LENGTH; x++) {
+    sprintf(s+(x*2), "%02x", hash[x]);
+  }
+  int i = SHA256_DIGEST_LENGTH * 2;
+  s[i] = '\0';
+  return s;
 }
 
 int removeDir(const char *path)

@@ -76,21 +76,6 @@ int readConfigure(){
   port = atoi(splitConfigData[1]);
 }
 
-char* readFromFile(int fd){
-  int maxCapacity = 4096;
-  char* buff = (char*) malloc(1024);
-  strcpy(buff, "");
-  char* str = (char*) malloc(maxCapacity);
-  strcpy(str, "");
-  while(read(fd, buff, 1020) != 0){
-    if (strlen(str) > .75 * maxCapacity){
-      maxCapacity *= 2;
-      str = realloc(str, maxCapacity);
-    }
-    str = strcat(str, strdup(buff));
-  }
-  return str;
-}
 
 void sendManifest(char* projectName){
   int i;
@@ -162,9 +147,283 @@ void parseInputString(char* str){
 
 void checkout(char* project){}
 
-void update(char* project)
+void update(char* project_Name)
 {
 
+
+  char path[50];
+  sprintf(path, "projects/%s", project_Name);
+
+  struct stat stat_record;
+  // ask server for Manifest --> to be imlemented 
+  // comapare .Manifest 
+
+  // check if server manifest is empty --> first commit 
+  char manifestGrab[50];
+  sprintf(manifestGrab, "manifest:%s", project_Name);
+  char  * server_manifest = sendToServer(manifestGrab);
+  if(strcmp(server_manifest, "NULL") ==0)
+  {
+    printf("Project doesn't Exist. Use .Update failed\n");
+    return;
+  }
+  char ** smanifest_split_line = splitString(server_manifest, '\n');
+  char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
+
+
+
+  char client_manifest[50];
+  sprintf(client_manifest, "%s/.Manifest", path);
+
+  int cmfd = open(client_manifest, O_RDONLY, 0);
+  char * local_manifest_data = readFromFile(cmfd);
+  close(cmfd);
+
+  char ** local_split = splitString(local_manifest_data, '\n');
+  char ** cmanifest_line = getMatchingLine(".Manifest", local_split);
+
+
+  bool conflict = 0;
+
+  char update_loc[50];
+  sprintf(update_loc, "projects/%s/.Update", project_Name);
+
+  char con_loc[50];
+  sprintf(con_loc, "projects/%s/.Conflict", project_Name);
+
+  remove(update_loc);
+
+  FILE * updateFile = fopen(update_loc, "w");
+  fclose(updateFile);
+  FILE * conFile = fopen(con_loc, "w");
+  fclose(conFile);
+
+  if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
+  {
+
+    int i=0;
+    FILE * updateFile = fopen(update_loc, "a");
+    while(smanifest_split_line[i])
+    {
+      char print_Line[100];
+      sprintf(print_Line,"%s %c:\n", smanifest_split_line[i], 'A');
+      fprintf(updateFile, "%s\n", print_Line);
+      printf("%s\n", print_Line);
+      i++;
+
+    }
+  }
+
+  if(strcmp(server_manifest, "") ==0)
+  {
+    //server manifest is empty 
+    //cp client/.Manifest to .Commit 
+
+    FILE * updatefile = fopen(update_loc, "w");
+    fclose(updateFile);
+    return;
+
+  }
+  else //compare files
+  {
+    bool matches =  atoi(smanifest_line[3]) == atoi(cmanifest_line[3]);
+    char clm[50];
+    sprintf(clm, "%s/.Manifest", path);
+
+    int clfd = open(client_manifest, O_RDONLY);
+    int sfd = open(".Manifest", O_RDONLY);
+
+    char * cl = readFromFile(clfd);
+    //char * sl =  readFromFile(sfd);
+    char sl[strlen(server_manifest)+1];
+    strcpy(sl, server_manifest);
+
+    int dif = compareFiles(cl, sl);
+    if(dif == 0)
+    {
+      FILE * updatefile = fopen(update_loc, "w");
+      fclose(updateFile);
+      printf("Everything up-to-date.\n");
+      return;
+    }
+    else
+    {
+
+      char ** cl_list = splitString(cl, '\n');
+      char ** sl_list = splitString(sl, '\n');
+
+      int i =0;
+      while(cl_list[i])
+      {
+
+
+        char cln[100];
+        strcpy(cln, cl_list[i]);
+        if(!sl_list[i])
+        {
+          if(matches)
+          {
+            char ** cline = splitString(cln, ' ');
+            printf("%s %s %s %c\n", cline[0], cline[1], cline[2], 'U');
+            i++;
+            continue;
+          }
+          else
+          {
+            char ** cline = splitString(cln, ' ');
+            FILE * updateFile = fopen(update_loc, "a");
+            fprintf(updateFile,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'D');
+            fclose(updateFile);
+            i++;
+            continue;
+          }
+
+        }
+
+        char sln[100];
+        strcpy(sln, sl_list[i]);
+
+        char ** cline = splitString(cln, ' ');
+        char ** sline = splitString(sln, ' ');
+        if(strcmp(cline[1], ".Manifest") == 0) 
+        {
+          i++;
+          continue;
+        }
+
+
+
+        char  **matched = getMatchingLine(cline[1] , sl_list);
+        if(matched == NULL) // in the clients, not in servers
+        {
+          if(matches)
+          {
+            char ** cline = splitString(cln, ' ');
+            printf("%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'U');
+            i++;
+            continue;
+          }
+          else
+          {
+            char ** cline = splitString(cln, ' ');
+            FILE * updateFile = fopen(update_loc, "a");
+            fprintf(updateFile,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'D');
+            fclose(updateFile);
+            i++;
+            continue;
+          }
+
+        }
+        else //check hashes
+        {
+          if(strcmp(cline[0],matched[0])==0) //hashes match, continue
+          {
+            i++;
+            continue;
+          }
+          else
+          {
+            if(matches)
+            {
+              int fd = open(cline[2], O_RDONLY);
+              if(strcmp(getFileHash(readFromFile(fd)), sline[0]) != 0)
+              {
+                char ** cline = splitString(cln, ' ');
+                printf("%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'U');
+                i++;
+                continue;
+
+              }
+            }
+            else // live hashes differet but in both manifest 
+            {
+              if(atoi(cline[3]) == atoi(matched[3])) 
+              {
+                i++;
+                continue;
+              }
+              int fd = open(cline[2], O_RDONLY);
+              if(strcmp(getFileHash(readFromFile(fd)), cline[0]) != 0)
+              {
+                char cmd[50];
+                sprintf(cmd, "%s/.Update",  path);
+                FILE * f = fopen(cmd, "a");
+                fprintf(f,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'M');
+                printf("%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'M');
+                fclose(f); 
+                i++;
+
+                continue;
+
+              }
+            }
+          } 
+        }
+      } 
+      i = 0;
+      while(sl_list[i])
+      {
+
+
+        char sln[100];
+        strcpy(sln, sl_list[i]);
+        char ** sline = splitString(sln, ' ');
+        if(!sline) break;
+        
+        if(!cl_list[i])
+        {
+                char cmd[50];
+                sprintf(cmd, "%s/.Update",  path);
+                FILE * f = fopen(cmd, "a");
+                fprintf(f,"%s %s %s %s %c\n", sline[0], sline[1], sline[2], sline[3], 'A');
+                printf("%s %s %s %s %c\n", sline[0], sline[1], sline[2], sline[3], 'A');
+                fclose(f); 
+
+                i++;
+                continue;
+        }
+        char cln[100];
+        strcpy(cln, cl_list[i]);
+
+        sline = splitString(sln, ' ');
+        if(!sline) break;
+
+        if(strcmp(sline[1], ".Manifest") == 0) 
+        {
+          i++;
+          continue;
+        }
+        cmanifest_line = getMatchingLine(sline[1], cl_list);
+        if(!cmanifest_line)
+        {
+          if(!matches)
+          {
+                char cmd[50];
+                sprintf(cmd, "%s/.Update",  path);
+                FILE * f = fopen(cmd, "a");
+                fprintf(f,"%s %s %s %s %c\n", sline[0], sline[1], sline[2], sline[3], 'A');
+                printf("%s %s %s %s %c\n", sline[0], sline[1], sline[2], sline[3], 'A');
+                fclose(f); 
+
+          }
+
+        }
+        i++;
+      }
+
+      int upfd = open(update_loc, O_RDONLY);
+      printf("\n\n\n");
+
+      char * fileData = readFromFile(upfd);
+      printf("Updates: %s\n", fileData);
+
+
+      return;
+
+    }
+
+
+  }
 }
 
 void upgrade(char* project){}
@@ -198,7 +457,9 @@ void commit(char * project_Name)
     // comapare .Manifest 
 
     // check if server manifest is empty --> first commit 
-    char  * server_manifest = sendToServer("manifest:pr1");
+    char manifestGrab[50];
+    sprintf(manifestGrab, "manifest:%s", project_Name);
+    char  * server_manifest = sendToServer(manifestGrab);
     if(strcmp(server_manifest, "NULL") ==0)
     {
       printf("Project doesn't Exist. Use ./WTF Commit and Add First\n");
@@ -206,8 +467,6 @@ void commit(char * project_Name)
     }
     char ** smanifest_split_line = splitString(server_manifest, '\n');
     char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
-
-
 
     char client_manifest[50];
     sprintf(client_manifest, "%s/.Manifest", path);
@@ -219,13 +478,11 @@ void commit(char * project_Name)
     char ** local_split = splitString(local_manifest_data, '\n');
     char ** cmanifest_line = getMatchingLine(".Manifest", local_split);
 
-    if(atoi((smanifest_line)[3]) != atoi((cmanifest_line)[3]))
+    if(atoi(smanifest_line[3]) != atoi(cmanifest_line[3]))
     {
       printf("Repository not Up to date.\n");
       return;
     }
-
-
 
     if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
     {
@@ -258,8 +515,6 @@ void commit(char * project_Name)
 
       sendToServer(dataToSend);
       printf("Commited Successfully\n");
-
-
 
       return;
 
@@ -303,7 +558,7 @@ void commit(char * project_Name)
             char cmd[50];
             sprintf(cmd, "%s/.Commit",  path);
             FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'A');
+            fprintf(f,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'A');
             fclose(f); 
             i++;
             continue;
@@ -320,7 +575,7 @@ void commit(char * project_Name)
             continue;
           }
 
-          
+
 
           char  **matched = getMatchingLine(cline[1] , sl_list);
           if(matched == NULL) // commit file doesnt have, add to .Commit
@@ -328,7 +583,7 @@ void commit(char * project_Name)
             char cmd[50];
             sprintf(cmd, "%s/.Commit",  path);
             FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'A');
+            fprintf(f,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'A');
             fclose(f); 
           }
           else //check hashes
@@ -350,7 +605,7 @@ void commit(char * project_Name)
               char cmd[50];
               sprintf(cmd, "%s/.Commit",  path);
               FILE * f = fopen(cmd, "a");
-              fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'U');
+              fprintf(f,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'M');
               fclose(f); 
               i++;
               continue;
@@ -380,7 +635,7 @@ void commit(char * project_Name)
             char cmd[50];
             sprintf(cmd, "%s/.Commit",  path);
             FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c\n", sline[0], sline[1], sline[2], 'A');
+            fprintf(f,"%s %s %s %s %c\n", sline[0], sline[1], sline[2], sline[3], 'D');
             fclose(f); 
 
           }
