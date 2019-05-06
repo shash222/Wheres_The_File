@@ -274,6 +274,6 @@ void currentversion(char * project)
 
 int main()
 {
-  commit("pr1");
+  removeDir("projects")
   return 0;
 }

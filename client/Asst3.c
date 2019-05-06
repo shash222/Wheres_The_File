@@ -36,9 +36,11 @@ int connectToServer(){
 } 
 
 char *sendToServer(char* sendText){
-  char buff[100];
+  char buff[1000];
   send(sock, sendText, strlen(sendText), 0);
-  read(sock, buff, 80);
+  recv(sock, buff, 1000, 0);
+  // read(sock, buff, 1000);
+  connectToServer();
   return buff;
 }
 
@@ -88,80 +90,6 @@ char* readFromFile(int fd){
     str = strcat(str, strdup(buff));
   }
   return str;
-}
-
-char** splitString(char* str, char delim){
-  int i;
-  int delimsFound = 0;
-  for (i = 0; i < strlen(str); i++){
-    if (str[i] == delim) delimsFound++;
-  }
-  // allocating 2 more than number of delims found to add additional NULL value at the end
-  // NULL value will allow for finding end of array
-  char** split = (char**) malloc((delimsFound + 2) * sizeof(char*));
-  char* word = (char*) malloc(20000);
-  char delimStr[2];
-  delimStr[0] = delim;
-  delimStr[1] = '\0';
-  word = strtok(str, delimStr);
-  i = 0;
-  while (word != NULL){ 
-    split[i] = (word);
-    word = strtok(NULL, delimStr);
-    if (!word) break;
-    i++;
-  }
-  split[++i] = NULL;
-  return split;
-}
-
-// creates string to be sent to server
-char* createSendString(char* file){
-  int i;
-  int fd = open(file, O_RDONLY, 0);
-  char* str = readFromFile(fd);
-  char** splitFilePath = splitString(strdup(file), '/');
-  for(i = 0; splitFilePath[i + 1] != NULL; i++);
-  char* fileName = splitFilePath[i];
-  char** split = strcmp(fileName, ".Manifest") == 0 ? splitString(str, '\n'): NULL;
-  char* sendString = (char*) malloc (2000000);
-  strcpy(sendString, "");
-  close(fd);
-  char numAsStr[10];
-  strcpy(numAsStr,"");
-  if (split != NULL){
-    for (i = 0; split[i] != NULL; i++){
-      char** splitData = splitString(split[i], ' ');
-      strcat(sendString, ":");
-      sprintf(numAsStr,"%d",strlen(splitData[1]));
-      strcat(sendString, numAsStr);
-      strcat(sendString, ":");
-      strcat(sendString, splitData[1]);
-      fd = open(splitData[2], O_RDONLY, 0);
-      str = readFromFile(fd);
-      strcat(sendString, ":");
-      sprintf(numAsStr,"%d",strlen(str));
-      strcat(sendString, numAsStr);
-      strcat(sendString, ":");
-      strcat(sendString, str);
-      close(fd);
-    }
-  }
-  else{
-    // number of files seems unnecessary
-    // strcat(sendString, ":1:");
-    strcat(sendString, ":");
-    sprintf(numAsStr, "%d", strlen(file));
-    strcat(sendString, numAsStr);
-    strcat(sendString, ":");
-    strcat(sendString, file);
-    strcat(sendString, ":");
-    sprintf(numAsStr, "%d", strlen(str));
-    strcat(sendString, numAsStr);
-    strcat(sendString, ":");
-    strcat(sendString, str);
-  }
-  return sendString;
 }
 
 void sendManifest(char* projectName){
@@ -234,7 +162,10 @@ void parseInputString(char* str){
 
 void checkout(char* project){}
 
-void update(char* project){}
+void update(char* project)
+{
+
+}
 
 void upgrade(char* project){}
 
@@ -246,9 +177,9 @@ void commit(char * project_Name)
   char path[50];
   sprintf(path, "projects/%s", project_Name);
 
-      char commit_path[50];
-      sprintf(commit_path, "%s/.Commit", path);
-      removeDir(commit_path);
+  char commit_path[50];
+  sprintf(commit_path, "%s/.Commit", path);
+  remove(commit_path);
 
 
   if(!projectExists(project_Name))
@@ -268,13 +199,15 @@ void commit(char * project_Name)
 
     // check if server manifest is empty --> first commit 
     char  * server_manifest = sendToServer("manifest:pr1");
-    printf("%s\n", server_manifest);
-    exit(0);
-
-    char ** smanifest_split_line = splitLine(server_manifest, '\n');
+    if(strcmp(server_manifest, "NULL") ==0)
+    {
+      printf("Project doesn't Exist. Use ./WTF Commit and Add First\n");
+      return;
+    }
+    char ** smanifest_split_line = splitString(server_manifest, '\n');
     char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
 
-    
+
 
     char client_manifest[50];
     sprintf(client_manifest, "%s/.Manifest", path);
@@ -283,7 +216,7 @@ void commit(char * project_Name)
     char * local_manifest_data = readFromFile(cmfd);
     close(cmfd);
 
-    char ** local_split = splitLine(local_manifest_data, '\n');
+    char ** local_split = splitString(local_manifest_data, '\n');
     char ** cmanifest_line = getMatchingLine(".Manifest", local_split);
 
     if(atoi((smanifest_line)[3]) != atoi((cmanifest_line)[3]))
@@ -341,7 +274,8 @@ void commit(char * project_Name)
 
       char * cl = readFromFile(clfd);
       //char * sl =  readFromFile(sfd);
-      char * sl =  server_manifest;
+      char sl[strlen(server_manifest)+1];
+      strcpy(sl, server_manifest);
 
       int dif = compareFiles(cl, sl);
       if(dif == 0)
@@ -352,8 +286,8 @@ void commit(char * project_Name)
       else
       {
 
-        char ** cl_list = splitLine(cl, '\n');
-        char ** sl_list = splitLine(sl, '\n');
+        char ** cl_list = splitString(cl, '\n');
+        char ** sl_list = splitString(sl, '\n');
 
         int i =0;
         while(cl_list[i])
@@ -362,12 +296,31 @@ void commit(char * project_Name)
 
           char cln[100];
           strcpy(cln, cl_list[i]);
+          if(!sl_list[i])
+          {
+
+            char ** cline = splitString(cln, ' ');
+            char cmd[50];
+            sprintf(cmd, "%s/.Commit",  path);
+            FILE * f = fopen(cmd, "a");
+            fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'A');
+            fclose(f); 
+            i++;
+            continue;
+          }
 
           char sln[100];
           strcpy(sln, sl_list[i]);
 
-          char ** cline = splitLine(cln, ' ');
-          char ** sline = splitLine(sln, ' ');
+          char ** cline = splitString(cln, ' ');
+          char ** sline = splitString(sln, ' ');
+          if(strcmp(cline[1], ".Manifest") == 0) 
+          {
+            i++;
+            continue;
+          }
+
+          
 
           char  **matched = getMatchingLine(cline[1] , sl_list);
           if(matched == NULL) // commit file doesnt have, add to .Commit
@@ -375,7 +328,7 @@ void commit(char * project_Name)
             char cmd[50];
             sprintf(cmd, "%s/.Commit",  path);
             FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c", cline[0], cline[1], cline[2], 'A');
+            fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'A');
             fclose(f); 
           }
           else //check hashes
@@ -387,23 +340,24 @@ void commit(char * project_Name)
             }
             else
             {
-              if(atoi(matched[3]) >= atoi(cline[3]))
+              if(atoi(matched[3]) > atoi(cline[3]))
               {
                 printf("Repository not up-to-date. Update before commiting\n");
                 return;
               }
 
 
-            char cmd[50];
-            sprintf(cmd, "%s/.Commit",  path);
-            FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c", cline[0], cline[1], cline[2], 'U');
-            fclose(f); 
+              char cmd[50];
+              sprintf(cmd, "%s/.Commit",  path);
+              FILE * f = fopen(cmd, "a");
+              fprintf(f,"%s %s %s %c\n", cline[0], cline[1], cline[2], 'U');
+              fclose(f); 
+              i++;
+              continue;
 
 
             } 
           }
-          i++;
         } 
         i = 0;
         while(sl_list[i])
@@ -413,15 +367,20 @@ void commit(char * project_Name)
           char sln[100];
           strcpy(sln, sl_list[i]);
 
-          char ** sline = splitLine(sln, ' ');
+          char ** sline = splitString(sln, ' ');
+          if(!sline) break;
 
+          if(strcmp(sline[1], ".Manifest") == 0) 
+          {
+            i++;
+            continue;
+          }
           if(!fileInProject(sline[1], project_Name))
           {
-
             char cmd[50];
             sprintf(cmd, "%s/.Commit",  path);
             FILE * f = fopen(cmd, "a");
-            fprintf(f,"%s %s %s %c", sline[0], sline[1], sline[2], 'A');
+            fprintf(f,"%s %s %s %c\n", sline[0], sline[1], sline[2], 'A');
             fclose(f); 
 
           }
@@ -489,7 +448,7 @@ void add(char * projectName, char * fileName)
         //else add with v1
         int fd = open(client_manifest, O_RDONLY);
         char * manifest_data = readFromFile(fd);
-        char ** manifestLines = splitLine(manifest_data, '\n');
+        char ** manifestLines = splitString(manifest_data, '\n');
         char ** match = getMatchingLine(fileName, manifestLines);
 
         if(match)
@@ -552,7 +511,18 @@ void destroy(char* project){}
 
 //void add(char* project, char* filename){}
 
-void rem(char* project, char* filename){}
+void rem(char * projectname, char * filename)
+{
+
+  if(!projectExists(projectname))
+  {
+    printf("Project does not exist!\n");
+    return;
+  }
+  else delFileHash(filename, projectname); 
+
+}
+
 
 void currentVersion(char* project){}
 
@@ -609,14 +579,14 @@ int main(int argc, char* args[]){
   }
   else validOption = 0;
   if (validOption == 0) printf("Invalid Option\n");
-  sendToServer("This is a test message");
+  //sendToServer("This is a test message");
   // create("Test");
   // char* s = createSendString("testFiles/test1.txt");
   char* s = createSendString("testFiles/test1.txt");
   char* s2 = (char*) malloc(strlen("a") + strlen(s));
   strcpy(s2, "a");
   strcat(s2, s);
-  sendManifest("projects/pr1");
+  //sendManifest("projects/pr1");
   //parseInputString(s2);
   return 0;
 }

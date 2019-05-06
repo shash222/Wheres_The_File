@@ -104,6 +104,81 @@ char** splitLine(char *fl, char  delim) {
   return line_arr;
 } 
 
+char** splitString(char* str, char delim){
+  int i;
+  int delimsFound = 0;
+  for (i = 0; i < strlen(str); i++){
+    if (str[i] == delim) delimsFound++;
+  }
+  // allocating 2 more than number of delims found to add additional NULL value at the end
+  // NULL value will allow for finding end of array
+  char** split = (char**) malloc((delimsFound + 2) * sizeof(char*));
+  char* word = (char*) malloc(20000);
+  char delimStr[2];
+  delimStr[0] = delim;
+  delimStr[1] = '\0';
+  word = strtok(str, delimStr);
+  i = 0;
+  while (word != NULL){ 
+    split[i] = (word);
+    word = strtok(NULL, delimStr);
+    if (!word) break;
+    i++;
+  }
+  split[++i] = NULL;
+  return split;
+}
+
+// creates string to be sent to client
+char* createSendString(char* file){
+  int i;
+  int fd = open(file, O_RDONLY, 0);
+  char* str = readFromFile(fd);
+  char** splitFilePath = splitString(strdup(file), '/');
+  for(i = 0; splitFilePath[i + 1] != NULL; i++);
+  char* fileName = splitFilePath[i];
+  char** split = strcmp(fileName, ".Manifest") == 0 ? splitString(str, '\n'): NULL;
+  char* sendString = (char*) malloc (2000000);
+  strcpy(sendString, "");
+  close(fd);
+  char numAsStr[10];
+  strcpy(numAsStr,"");
+  if (split != NULL){
+    for (i = 0; split[i] != NULL; i++){
+      char** splitData = splitString(split[i], ' ');
+      strcat(sendString, ":");
+      sprintf(numAsStr,"%d",strlen(splitData[1]));
+      strcat(sendString, numAsStr);
+      strcat(sendString, ":");
+      strcat(sendString, splitData[1]);
+      fd = open(splitData[2], O_RDONLY, 0);
+      str = readFromFile(fd);
+      strcat(sendString, ":");
+      sprintf(numAsStr,"%d",strlen(str));
+      strcat(sendString, numAsStr);
+      strcat(sendString, ":");
+      strcat(sendString, str);
+      close(fd);
+    }
+  }
+  else{
+    // number of files seems unnecessary
+    // strcat(sendString, ":1:");
+    strcat(sendString, ":");
+    sprintf(numAsStr, "%d", strlen(file));
+    strcat(sendString, numAsStr);
+    strcat(sendString, ":");
+    strcat(sendString, file);
+    strcat(sendString, ":");
+    sprintf(numAsStr, "%d", strlen(str));
+    strcat(sendString, numAsStr);
+    strcat(sendString, ":");
+    strcat(sendString, str);
+  }
+  return sendString;
+}
+
+
 
 
 char ** getMatchingLine(char *c, char ** s)
@@ -118,7 +193,7 @@ char ** getMatchingLine(char *c, char ** s)
 
     if(strcmp(c, sline[1])==0) {
       strcpy(ns, s[i]);
-      return splitLine(ns, ' ');
+      return sline;
     }
 
   }
