@@ -30,7 +30,6 @@ int connectToServer(){
     printf("Unable to connect to socket, trying again in 3 seconds\n");
     sleep(3); 
   }
-  printf("%d\n", sock);
   printf("Connected to server\n");
   return 0; 
 } 
@@ -40,6 +39,7 @@ char *sendToServer(char* sendText){
   send(sock, sendText, strlen(sendText), 0);
   recv(sock, buff, 1000, 0);
   // read(sock, buff, 1000);
+  close(sock);
   connectToServer();
   return buff;
 }
@@ -101,6 +101,42 @@ void sendManifest(char* projectName){
   strcat(sendString, str);
 }
 
+void sendFilesInCommit(char* projectName){
+  int i;
+  if (!projectName) printf("Project name null\n");
+  if(!projectExists(projectName)) 
+  {
+    printf("Project does not exist\nTerminating program\n");
+    return;
+  }
+  char* file = (char*) malloc(strlen("projects/") + strlen(projectName) + strlen("/.Commit") + 1);
+  strcpy(file, "projects/");
+  strcat(file, projectName);
+  strcat(file, "/.Commit");
+  int fd = open(file, O_RDONLY, 0);
+  char* str = readFromFile(fd);
+  char* sendString = (char*) malloc (2000000);
+  strcpy(sendString, "");
+  close(fd);
+  char numAsStr[10];
+  strcpy(numAsStr,"");
+  strcat(sendString, ":");
+  sprintf(numAsStr, "%d", strlen(file));
+  strcat(sendString, numAsStr);
+  strcat(sendString, ":");
+  strcat(sendString, file);
+  strcat(sendString, ":");
+  sprintf(numAsStr, "%d", strlen(str));
+  strcat(sendString, numAsStr);
+  strcat(sendString, ":");
+  strcat(sendString, str);
+  char* temp = (char*) malloc(strlen("push") + strlen(sendString) + 1);
+  sprintf(temp, "push%s", sendString);
+  sendString = temp;
+  printf("sending: %s\n", sendString);
+  printf("%s\n", sendToServer(sendString));
+  return;
+}
 
 void parseInputString(char* str){
   char** split = splitString(str, ':');
@@ -723,10 +759,33 @@ void add(char * projectName, char * fileName)
 
 }
 
-
-
-
-void push(char* project){}
+void push(char* project){
+  char* filepath = (char*) malloc(strlen("projects/") + strlen(project) + strlen("/.Commit") + 1);
+  sprintf(filepath, "projects/%s/.Commit", project);
+  int fd = open(filepath, O_RDONLY);
+  if (fd < 0){
+    printf("Cannot find file\nTerminating program\n");
+    exit(0);
+  }
+  char* fileContent = readFromFile(fd);
+  char** splitFile = splitString(fileContent, '\n');
+  int i = 0;
+  char* str = createSendString(filepath);
+  char* sendString = (char*) malloc(strlen("push:sendingCommit") + strlen(fileContent) + 1);
+  sprintf(sendString, "push:sendingCommit:%s", fileContent);
+  char* receivedText = sendToServer(sendString);
+  while(splitFile[i] != NULL){
+    char** splitLine = splitString(splitFile[i], ' ');
+    char* sendString = splitLine[4];
+    i++;
+  }
+  free(sendString);
+  char* filesInCreate = createSendString(filepath);
+  sendString = (char*) malloc(strlen("push") + strlen(filesInCreate) + 1);
+  strcpy(sendString, "");
+  sprintf(sendString, "push%s", filesInCreate);
+  sendToServer(sendString);
+}
 
 void create(char* projectName){
   // +7 accounts for "create:"
@@ -834,14 +893,6 @@ int main(int argc, char* args[]){
   }
   else validOption = 0;
   if (validOption == 0) printf("Invalid Option\n");
-  //sendToServer("This is a test message");
-  // create("Test");
-  // char* s = createSendString("testFiles/test1.txt");
-  char* s = createSendString("testFiles/test1.txt");
-  char* s2 = (char*) malloc(strlen("a") + strlen(s));
-  strcpy(s2, "a");
-  strcat(s2, s);
-  //sendManifest("projects/pr1");
-  //parseInputString(s2);
+  close(sock);
   return 0;
 }

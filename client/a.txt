@@ -1,0 +1,20 @@
+/*  char* filepath = (char*) malloc(strlen("projects/") + strlen(project) + strlen("/.Commit") + 1);
+  sprintf(filepath, "projects/%s/.Commit", project);
+  int fd = open(filepath, O_RDONLY);
+  if (fd < 0){
+    printf("Cannot find file\nTerminating program\n");
+    exit(0);
+  }
+  char* fileContent = readFromFile(fd);
+  char** splitFile = splitString(fileContent, '\n');
+  int i = 0;
+  char* str = createSendString(filepath);
+  char* sendString = (char*) malloc(strlen("push:sendingCommit") + strlen(str) + 1);
+  sprintf(sendString, "push:sendingCommit%s", str);
+  printf("send string: %s\n", sendString);
+  while(splitFile[i] != NULL){
+    char** splitLine = splitString(splitFile[i], ' ');
+    char* sendString = splitLine[4];
+    i++;
+  }
+*

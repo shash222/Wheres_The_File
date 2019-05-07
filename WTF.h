@@ -150,13 +150,16 @@ char** splitString(char* str, char delim){
 
 // creates string to be sent to client
 char* createSendString(char* file){
+  printf("file %s\n", file);
   int i;
   int fd = open(file, O_RDONLY, 0);
   char* str = readFromFile(fd);
   char** splitFilePath = splitString(strdup(file), '/');
   for(i = 0; splitFilePath[i + 1] != NULL; i++);
+  char* projectName = splitFilePath[i - 1];
   char* fileName = splitFilePath[i];
   char** split = strcmp(fileName, ".Manifest") == 0 ? splitString(str, '\n'): NULL;
+  split = strcmp(fileName, ".Commit") == 0 ? splitString(str, '\n') : split;
   char* sendString = (char*) malloc (2000000);
   strcpy(sendString, "");
   close(fd);
@@ -165,6 +168,11 @@ char* createSendString(char* file){
   if (split != NULL){
     for (i = 0; split[i] != NULL; i++){
       char** splitData = splitString(split[i], ' ');
+      strcat(sendString, ":");
+      sprintf(numAsStr,"%d",strlen(projectName));
+      strcat(sendString, numAsStr);
+      strcat(sendString, ":");
+      strcat(sendString, projectName);
       strcat(sendString, ":");
       sprintf(numAsStr,"%d",strlen(splitData[1]));
       strcat(sendString, numAsStr);

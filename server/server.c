@@ -17,7 +17,7 @@ void upgrade(char* split[]);
 
 void commit(char* split[]);
 
-void push(char* split[]);
+void push(char* split[], int socketfd);
 
 void create(char* split[]);
 
@@ -36,6 +36,7 @@ int new_socket;
 int highestClientSocket;
 
 void sendToClient(char* sendText, int socketfd){
+  printf("In sendtoserver\n");
   printf("%s\n", sendText);
   send(socketfd, sendText, strlen(sendText), 0);
 }
@@ -140,7 +141,31 @@ void commit(char* split[])
 
 }
 
-void push(char* split[]){}
+void push(char* split[], int socketfd){
+  int fileCounter = 0;
+  if (strcmp(split[1], "sendingCommit") == 0){
+    char* clientCommit = strdup(split[2]);
+    char** splitClientCommit = splitString(clientCommit, ' ');
+    char** splitClientFilePath = splitString(splitClientCommit[2], '/');
+    //char* filepath = (char*) malloc(strlen("/.Commit") + strlen(splitClientFilePath[0]) + strlen(splitClientFilePath[1] + 1));
+    char filepath[50];
+    strcpy(filepath, "");
+    sprintf(filepath, "projects/%s/.Commit", splitClientFilePath[1]);
+    //char* splitCombined = (char*) malloc(strlen(split[]) + strlen(split[]) + strlen(split[]));
+    char* temp = (char*) malloc(strlen(split[2]) + 2);
+    sprintf(temp, "%s\n", split[2]);
+    int fd = open(filepath, O_RDONLY);
+    char* fileData = readFromFile(fd);
+    printf("%d\n", strcmp(fileData, temp));
+    printf("b %s\n", fileData);
+    printf("c %s\n", getFileHash(fileData));
+    printf("d %s\n", temp);
+    printf("e %s\n", getFileHash(temp));
+    sendToClient("Server Received .Commit", socketfd);
+    return;
+  }
+  int i;
+}
 
 void create(char* split[]){
   //create file locally 
@@ -189,7 +214,6 @@ void runServer(){
   struct sockaddr_in address;
   int opt = 1;
   int addrlen = sizeof(address);
-  char buffer[1001000] = {0};
   // Creating socket file descriptor 
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
     perror("socket failed");
@@ -211,9 +235,11 @@ void runServer(){
   } 
 
   for(;;){
-    int maxSizeOfInput = 1024;
-    char* inputReceived = (char*) malloc(maxSizeOfInput);
+    int maxSizeOfInput = 1000024;
+    char* inputReceived = (char*) calloc(1, maxSizeOfInput);
+    char* buffer = (char*) calloc(1, 10000);
     strcpy(inputReceived, "");
+    strcpy(buffer, "");
     int bytes = 0;
     int readBytes;
     if (listen(server_fd, 3) < 0){ 
@@ -226,20 +252,17 @@ void runServer(){
     }
     if (new_socket > highestClientSocket) highestClientSocket = new_socket;
     printf("Client has connected\n");
-    read(new_socket, buffer, 1000000);
-    readBytes += bytes;
-    if (readBytes >= .6 * maxSizeOfInput){
-      maxSizeOfInput *= 2;
-      inputReceived = realloc(inputReceived, maxSizeOfInput);
-    }
-    strcat(inputReceived, buffer);
-    printf("client sent: %s\n", inputReceived);
+    //while(recv(new_socket, buffer, 50, 0) != 0){
+      recv(new_socket, buffer, 10000, 0); 
+      strcat(inputReceived, buffer);
+      printf("client sent: %s\n", inputReceived);
+    //}
     char** split = splitString(inputReceived, ':');
     if (strcmp(split[0], "checkout") == 0) checkout(split);
     else if (strcmp(split[0], "update") == 0) update(split);
     else if (strcmp(split[0], "upgrade") == 0) upgrade(split);
     else if (strcmp(split[0], "commit") == 0) commit(split);
-    else if (strcmp(split[0], "push") == 0) push(split);
+    else if (strcmp(split[0], "push") == 0) push(split, new_socket);
     else if (strcmp(split[0], "create") == 0) create(split);
     else if (strcmp(split[0], "destroy") == 0) destroy(split);
     else if (strcmp(split[0], "add") == 0) add(split);
@@ -251,8 +274,7 @@ void runServer(){
     else printf("Incorrect command\n");
     int i;
     for (i = 0; !split[i]; i++) free(split[i]);
-    sendManifest("pr1", new_socket);
-    //send(new_socket, manifestData, strlen(manifestData), 0);
+    free(buffer);
     free(inputReceived);
   }
 }
