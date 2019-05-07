@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <openssl/sha.h>
 #include <stdbool.h>
-
+#include <dirent.h>
 
 char* readFromFile(int fd);
 

@@ -1,2 +1,3 @@
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .Manifest projects/pr1/.Manifest 1  
-9f14ba05f0f2b0fa7b0a3e63efb919d2cd0f232322de3579550fbf253d302678 test2.txt projects/pr1/test2.txt 7  
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .Manifest projects/pr1/.Manifest 2  
+a89da05bf0295bcb0f55efe555326b4934f390251cd79e9ee2ca2c9608765e6e test1.txt projects/pr1/test1.txt 1  
+9f14ba05f0f2b0fa7b0a3e63efb919d2cd0f232322de3579550fbf253d302678 test2.txt projects/pr1/test2.txt 3  
