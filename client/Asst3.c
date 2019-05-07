@@ -203,7 +203,8 @@ void update(char* project_Name)
     printf("Project doesn't Exist. Use .Update failed\n");
     return;
   }
-  char ** smanifest_split_line = splitString(server_manifest, '\n');
+  char * sman_dup = strdup(server_manifest);
+  char ** smanifest_split_line = splitString(sman_dup, '\n');
   char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
 
 
@@ -213,7 +214,7 @@ void update(char* project_Name)
 
   int cmfd = open(client_manifest, O_RDONLY, 0);
   char * local_manifest_data = readFromFile(cmfd);
-  close(cmfd);
+  //close(cmfd);
 
   char ** local_split = splitString(local_manifest_data, '\n');
   char ** cmanifest_line = getMatchingLine(".Manifest", local_split);
@@ -230,9 +231,7 @@ void update(char* project_Name)
   remove(update_loc);
 
   FILE * updateFile = fopen(update_loc, "w");
-  fclose(updateFile);
   FILE * conFile = fopen(con_loc, "w");
-  fclose(conFile);
 
   if(stat(client_manifest, &stat_record) || stat_record.st_size <= 1) 
   {
@@ -271,8 +270,8 @@ void update(char* project_Name)
 
     char * cl = readFromFile(clfd);
     //char * sl =  readFromFile(sfd);
-    char sl[strlen(server_manifest)+1];
-    strcpy(sl, server_manifest);
+    server_manifest = sendToServer(manifestGrab);
+    char * sl = strdup(server_manifest);
 
     int dif = compareFiles(cl, sl);
     if(dif == 0)
@@ -352,7 +351,7 @@ void update(char* project_Name)
         }
         else //check hashes
         {
-          if(strcmp(cline[0],matched[0])==0) //hashes match, continue
+          if(strcmp(cline[0],matched[0])==0 && atoi(cline[3]) == atoi (matched[3])) //hashes match, continue
           {
             i++;
             continue;
@@ -367,9 +366,11 @@ void update(char* project_Name)
                 char ** cline = splitString(cln, ' ');
                 printf("%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'U');
                 i++;
+                close(fd);
                 continue;
 
               }
+              close(fd);
             }
             else // live hashes differet but in both manifest 
             {
@@ -379,7 +380,7 @@ void update(char* project_Name)
                 continue;
               }
               int fd = open(cline[2], O_RDONLY);
-              if(strcmp(getFileHash(readFromFile(fd)), cline[0]) != 0)
+              if(strcmp(getFileHash(readFromFile(fd)), cline[0]) == 0)
               {
                 char cmd[50];
                 sprintf(cmd, "%s/.Update",  path);
@@ -387,22 +388,26 @@ void update(char* project_Name)
                 fprintf(f,"%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'M');
                 printf("%s %s %s %s %c\n", cline[0], cline[1], cline[2], cline[3], 'M');
                 fclose(f); 
+                close(fd);
                 i++;
 
                 continue;
 
               }
+              
+              i++;
+                close(fd);
             }
           } 
         }
       } 
       i = 0;
+      sl = strdup(sendToServer(manifestGrab));
+      sl_list = splitString(sl, '\n');
       while(sl_list[i])
       {
 
-
-        char sln[100];
-        strcpy(sln, sl_list[i]);
+        char * sln = strdup(sl_list[i]);
         char ** sline = splitString(sln, ' ');
         if(!sline) break;
         
@@ -421,7 +426,6 @@ void update(char* project_Name)
         char cln[100];
         strcpy(cln, cl_list[i]);
 
-        sline = splitString(sln, ' ');
         if(!sline) break;
 
         if(strcmp(sline[1], ".Manifest") == 0) 
@@ -452,6 +456,7 @@ void update(char* project_Name)
 
       char * fileData = readFromFile(upfd);
       printf("Updates: %s\n", fileData);
+
 
 
       return;
@@ -501,7 +506,7 @@ void commit(char * project_Name)
       printf("Project doesn't Exist. Use ./WTF Commit and Add First\n");
       return;
     }
-    char ** smanifest_split_line = splitString(server_manifest, '\n');
+    char ** smanifest_split_line = splitString(strdup(server_manifest), '\n');
     char ** smanifest_line = getMatchingLine(".Manifest", smanifest_split_line);
 
     char client_manifest[50];
@@ -565,8 +570,7 @@ void commit(char * project_Name)
 
       char * cl = readFromFile(clfd);
       //char * sl =  readFromFile(sfd);
-      char sl[strlen(server_manifest)+1];
-      strcpy(sl, server_manifest);
+      char * sl = strdup(server_manifest);
 
       int dif = compareFiles(cl, sl);
       if(dif == 0)

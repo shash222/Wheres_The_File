@@ -214,12 +214,10 @@ char ** getMatchingLine(char *c, char ** s)
   int i=0;
   for(;s[i]; i++)
   {
-    char ns[1000];
-    strcpy(ns, s[i]);
-    char ** sline = splitLine(ns, ' ');
+    char * ns = strdup(s[i]);
+    char ** sline = splitString(ns, ' ');
 
     if(strcmp(c, sline[1])==0) {
-      strcpy(ns, s[i]);
       return sline;
     }
 
